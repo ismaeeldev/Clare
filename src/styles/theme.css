@@ -1,0 +1,191 @@
+/**
+ * Claré design tokens — raw CSS custom properties.
+ * Source of truth: docs/02_ThemeGuideline.md sections 2, 3, 4, 5.
+ * Do not hardcode any of these values elsewhere in the app — always reference
+ * the token (directly, or via the Tailwind @theme mapping in globals.css).
+ */
+
+:root {
+  /* === 2.1 Core brand tokens (locked — from client source, do not alter) === */
+  --color-bg: #f7f6f3;
+  --color-bg-dark: #eeecea;
+  --color-white: #ffffff;
+  --color-navy: #1a1f3c;
+  --color-navy-light: #252b4a;
+  --color-gold: #c9a84c;
+  --color-gold-light: #c9a84c18;
+  --color-gold-soft: #fdf6e3;
+  --color-green: #2d9b6f;
+  --color-green-soft: #2d9b6f15;
+  --color-red: #d94f3d;
+  --color-red-soft: #d94f3d15;
+  --color-amber: #e07b39;
+  --color-amber-soft: #e07b3915;
+  --color-purple: #7c5cbf;
+  --color-purple-soft: #7c5cbf15;
+  --color-text: #1a1f3c;
+  --color-text-mid: #5a5f7a;
+  --color-text-light: #9a9fb8;
+  --color-text-muted: #c0c4d6;
+  --color-border: #e4e2dc;
+  /* --color-text-meta (added Step 8, 2026-09-03): --color-text-light fails
+     WCAG AA (2.42:1 on --color-bg — needs 4.5:1) and is explicitly locked
+     as a client-approved brand token, so it's left untouched for its
+     original tertiary/placeholder role. This is the AA-passing (4.56:1)
+     same-hue-family alternative for helper/timestamp text that actually
+     conveys information — genuinely different from decorative/placeholder
+     text, per docs/07_ProjectState.md's 2026-09-03 blocker resolution. */
+  --color-text-meta: #6a6f8c;
+
+  /* Accent-as-text tokens (added Step 8, 2026-09-03): the raw brand accents
+     below (--color-gold/green/red/amber/purple) all fail WCAG AA when used
+     as small TEXT on a light background (gold 2.11-2.29:1, green 2.96-3.48,
+     red 3.47-4.09, amber 2.52-2.97 — all under the 4.5:1 minimum; even
+     --gold-700 only reaches 2.90) — found via axe-core across every route.
+     The raw accent colors themselves are untouched and still correct for
+     their many other uses (icons, borders, backgrounds, pills, and text
+     specifically on navy backgrounds, where they already pass). These
+     "-text" variants are darkened versions, same hue, for the specific case
+     of accent-colored TEXT on a light (--color-bg/--color-bg-dark/white)
+     background — e.g. a red "-50€" figure or a green "+3" streak count. */
+  --color-gold-text: #79652e; /* 4.80:1 on --color-bg-dark */
+  --color-green-text: #227453; /* 4.83:1 on --color-bg-dark */
+  --color-red-text: #b84334; /* 4.58:1 on --color-bg-dark */
+  --color-amber-text: #9d5628; /* 4.70:1 on --color-bg-dark */
+  --color-purple-text: #7657b5; /* 4.69:1 on --color-bg-dark */
+
+  /* --color-red-solid (added Step 8, 2026-09-03): white text on the raw
+     --color-red as a solid button fill is only 4.09:1 — fails AA for
+     normal-size text by a hair. A 10%-darker red keeps the same hue and
+     "danger/stop" meaning while giving white text a safe 4.91:1 margin.
+     Only for this specific solid-fill-with-white-text pattern (Non/Stop/
+     Supprimer buttons) — --color-red itself is unchanged everywhere else
+     (borders, -soft tints, icon color, text-on-navy). */
+  --color-red-solid: #c34737;
+  /* Same solid-fill-with-white-text pattern as red-solid above, found on
+     the Journal sport-séance pill buttons (Non/Légère/Faite) — green and
+     gold as solid button fills only reach 3.48:1 / 2.29:1 with white text. */
+  --color-green-solid: #26845e; /* 4.62:1 with white text */
+  --color-gold-solid: #836d31; /* 5.00:1 with white text */
+  --color-amber-solid: #a85c2b; /* 4.96:1 with white text */
+
+  /* === 2.2 Extended tokens (derived tint/shade ramps, premium execution) === */
+  /* Navy tint ramp */
+  --navy-950: #12162e;
+  --navy-900: #1a1f3c; /* = --color-navy */
+  --navy-800: #252b4a; /* = --color-navy-light */
+  --navy-700: #2d3561;
+  --navy-600: #3d4a7a;
+  --navy-100: #edeef5;
+
+  /* Gold tint ramp */
+  --gold-700: #a8863a;
+  --gold-500: #c9a84c; /* = --color-gold */
+  --gold-300: #ddbe6a;
+  --gold-100: #fdf6e3; /* = --color-gold-soft */
+
+  /* Elevation surfaces (glass-on-navy for premium overlays — used sparingly) */
+  --surface-glass: rgba(255, 255, 255, 0.06);
+  --surface-glass-border: rgba(255, 255, 255, 0.12);
+
+  /* Focus ring (§2.3 — never browser default blue) */
+  --color-focus-ring: rgba(201, 168, 76, 0.4);
+
+  /* === 3.1 Font families === */
+  --font-display: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  /* === 3.2 Type scale (size / line-height / weight as separate vars for Tailwind mapping) === */
+  --text-display-lg-size: 32px;
+  --text-display-lg-leading: 1.15;
+  --text-display-lg-weight: 800;
+
+  --text-display-size: 28px;
+  --text-display-leading: 1.2;
+  --text-display-weight: 800;
+
+  --text-display-sm-size: 22px;
+  --text-display-sm-leading: 1.25;
+  --text-display-sm-weight: 700;
+
+  --text-heading-size: 17px;
+  --text-heading-leading: 1.3;
+  --text-heading-weight: 700;
+
+  --text-body-lg-size: 16px;
+  --text-body-lg-leading: 1.6;
+  --text-body-lg-weight: 400;
+
+  --text-body-size: 14px;
+  --text-body-leading: 1.55;
+  --text-body-weight: 400;
+
+  --text-body-sm-size: 13px;
+  --text-body-sm-leading: 1.5;
+  --text-body-sm-weight: 500;
+
+  --text-label-size: 12px;
+  --text-label-leading: 1.4;
+  --text-label-weight: 700;
+  --text-label-tracking: 0.06em;
+
+  --text-caption-size: 11px;
+  --text-caption-leading: 1.4;
+  --text-caption-weight: 600;
+
+  /* === 4.1 Spacing scale (4px base unit) === */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-3-5: 14px;
+  --space-4: 16px;
+  --space-4-5: 18px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* === 4.2 Border radius === */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 14px;
+  --radius-xl: 22px; /* 20-24px range, midpoint */
+  --radius-full: 999px;
+
+  /* === 5. Elevation & surface treatment (shadows) === */
+  --shadow-flat: none;
+  --shadow-raised:
+    0 2px 8px rgba(26, 31, 60, 0.06), 0 1px 2px rgba(26, 31, 60, 0.04);
+  --shadow-floating:
+    0 8px 24px rgba(26, 31, 60, 0.1), 0 2px 6px rgba(26, 31, 60, 0.06);
+  --shadow-modal: 0 24px 64px rgba(18, 22, 46, 0.28);
+  --shadow-gold-glow: 0 8px 32px rgba(201, 168, 76, 0.25);
+}
+
+/* === 2.4 Dark mode ===
+   Inverts around navy rather than going pure black, keeping brand identity
+   intact. Gold/green/red/amber/purple accents stay IDENTICAL — brand accents
+   never shift between light and dark. Ship light mode first (Step 1); dark
+   mode is a Step 8 polish task, but the tokens are defined now so nothing
+   downstream has to retrofit a --color-* naming scheme later. */
+:root[data-theme="dark"] {
+  --color-bg: #12162e; /* = --navy-950 */
+  --color-bg-dark: #1a1f3c; /* = --navy-900 */
+  --color-white: #1f2444; /* card surface, elevated navy */
+  --color-text: #f4f2ed;
+  --color-text-mid: #b7bbd4;
+  --color-text-light: #7b80a0;
+  --color-text-meta: #7b80a0; /* already AA-passing (4.61:1) in dark mode — same value as text-light here */
+  --color-border: #2d3561; /* = --navy-700 */
+  /* Accent-as-text (dark mode): gold/green/amber already pass AA on the
+     dark bg unmodified (7.04/4.62/5.41:1), so no override needed for them.
+     Only red (3.94:1) and purple (3.17:1) still fail small-text AA even on
+     navy — lightened (not darkened, since the background is now dark)
+     variants for those two only. */
+  --color-red-text: #db5847; /* 4.66:1 on dark --color-bg */
+  --color-purple-text: #9074c9; /* 4.68:1 on dark --color-bg */
+}

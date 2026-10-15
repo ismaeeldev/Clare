@@ -1,0 +1,30 @@
+node_modules
+dist
+.vercel
+.env
+.env.*
+!.env.example
+*.local
+.DS_Store
+
+.vercel
+.env*
+
+# Internal planning/spec docs and operational notes — not meant for the
+# client-facing repo (real Supabase project refs, go-live steps, etc.)
+.claude
+docs
+STRIPE.md
+
+# Reference materials and large binaries — not source, no reason to bloat
+# the repo or push them to a client remote
+Refrence
+*.pdf
+*.docx
+*.zip
+
+# Supabase CLI's own local session cache — leaks the live project ref,
+# org id, and pooler connection string. Regenerated automatically by any
+# `supabase` CLI command, never meant to be committed.
+supabase/.temp
+

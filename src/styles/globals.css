@@ -1,0 +1,309 @@
+@import "tailwindcss";
+@import "./theme.css";
+
+@custom-variant dark (&:is([data-theme="dark"] *));
+
+/**
+ * "wide" breakpoint (added Step 8, 2026-09-03) — docs/02_ThemeGuideline.md
+ * §4.3's 4th breakpoint (1440px+, "two-pane + optional right-side context
+ * panel") doesn't map to any of Tailwind's stock breakpoints (sm/md/lg/xl
+ * are 640/768/1024/1280). `lg:` (1024px) is used for the "desktop" tier;
+ * this custom variant covers "wide" at the spec's exact value.
+ */
+@custom-variant wide (@media (min-width: 1440px));
+
+/**
+ * Tailwind v4 is CSS-first: this @theme block maps every raw token defined in
+ * theme.css into real Tailwind utility classes (bg-navy, text-body-lg,
+ * rounded-lg, shadow-raised, etc.) instead of a v3-style tailwind.config.ts
+ * theme.extend object. See docs/02_ThemeGuideline.md §11 and the Step 0.5
+ * session log note in docs/07_ProjectState.md for why.
+ */
+@theme inline {
+  /* Colors — §2.1 core brand tokens */
+  --color-bg: var(--color-bg);
+  --color-bg-dark: var(--color-bg-dark);
+  --color-white: var(--color-white);
+  --color-navy: var(--color-navy);
+  --color-navy-light: var(--color-navy-light);
+  --color-gold: var(--color-gold);
+  --color-gold-light: var(--color-gold-light);
+  --color-gold-soft: var(--color-gold-soft);
+  --color-gold-text: var(--color-gold-text);
+  --color-gold-solid: var(--color-gold-solid);
+  --color-green: var(--color-green);
+  --color-green-soft: var(--color-green-soft);
+  --color-green-text: var(--color-green-text);
+  --color-green-solid: var(--color-green-solid);
+  --color-red: var(--color-red);
+  --color-red-soft: var(--color-red-soft);
+  --color-red-text: var(--color-red-text);
+  --color-red-solid: var(--color-red-solid);
+  --color-amber: var(--color-amber);
+  --color-amber-soft: var(--color-amber-soft);
+  --color-amber-text: var(--color-amber-text);
+  --color-amber-solid: var(--color-amber-solid);
+  --color-purple: var(--color-purple);
+  --color-purple-soft: var(--color-purple-soft);
+  --color-purple-text: var(--color-purple-text);
+  --color-text: var(--color-text);
+  --color-text-mid: var(--color-text-mid);
+  --color-text-light: var(--color-text-light);
+  --color-text-meta: var(--color-text-meta);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+
+  /* Colors — §2.2 extended tint ramps */
+  --color-navy-950: var(--navy-950);
+  --color-navy-900: var(--navy-900);
+  --color-navy-800: var(--navy-800);
+  --color-navy-700: var(--navy-700);
+  --color-navy-600: var(--navy-600);
+  --color-navy-100: var(--navy-100);
+  --color-gold-700: var(--gold-700);
+  --color-gold-500: var(--gold-500);
+  --color-gold-300: var(--gold-300);
+  --color-gold-100: var(--gold-100);
+  --color-focus-ring: var(--color-focus-ring);
+
+  /* Fonts — §3.1 */
+  --font-display: var(--font-display);
+  --font-ui: var(--font-ui);
+  --font-sans: var(--font-ui); /* Tailwind's default sans maps to our UI font */
+
+  /* Font sizes — §3.2 (paired with matching --text-*--line-height via Tailwind v4 convention) */
+  --text-display-lg: var(--text-display-lg-size);
+  --text-display-lg--line-height: var(--text-display-lg-leading);
+  --text-display: var(--text-display-size);
+  --text-display--line-height: var(--text-display-leading);
+  --text-display-sm: var(--text-display-sm-size);
+  --text-display-sm--line-height: var(--text-display-sm-leading);
+  --text-heading: var(--text-heading-size);
+  --text-heading--line-height: var(--text-heading-leading);
+  --text-body-lg: var(--text-body-lg-size);
+  --text-body-lg--line-height: var(--text-body-lg-leading);
+  --text-body: var(--text-body-size);
+  --text-body--line-height: var(--text-body-leading);
+  --text-body-sm: var(--text-body-sm-size);
+  --text-body-sm--line-height: var(--text-body-sm-leading);
+  --text-label: var(--text-label-size);
+  --text-label--line-height: var(--text-label-leading);
+  --text-caption: var(--text-caption-size);
+  --text-caption--line-height: var(--text-caption-leading);
+
+  /* Spacing — §4.1 (extends Tailwind's default numeric scale with named tokens) */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-3-5: var(--space-3-5);
+  --spacing-4: var(--space-4);
+  --spacing-4-5: var(--space-4-5);
+  --spacing-5: var(--space-5);
+  --spacing-6: var(--space-6);
+  --spacing-7: var(--space-7);
+  --spacing-8: var(--space-8);
+  --spacing-10: var(--space-10);
+  --spacing-12: var(--space-12);
+  --spacing-16: var(--space-16);
+  --spacing-20: var(--space-20);
+
+  /* Border radius — §4.2 */
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  /* Shadows — §5 */
+  --shadow-flat: var(--shadow-flat);
+  --shadow-raised: var(--shadow-raised);
+  --shadow-floating: var(--shadow-floating);
+  --shadow-modal: var(--shadow-modal);
+  --shadow-gold-glow: var(--shadow-gold-glow);
+
+  /* Breakpoints — §4.3 (mobile-first four-tier system, replaces the old fixed-480px layout) */
+  --breakpoint-tablet: 640px;
+  --breakpoint-desktop: 1024px;
+  --breakpoint-wide: 1440px;
+
+  /* Skeleton loading shimmer (Step 1.2.5) — navy-tinted per §9, not generic gray */
+  --animate-skeleton-shimmer: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/**
+ * chat-dot — extracted from App.jsx's inline <style> tag (line 1478,
+ * "@keyframes dot"), used by ChatScreen's typing/reorg indicators and
+ * dictation-active pulse. Renamed with a "chat-" prefix (not just "dot")
+ * to avoid colliding with any future animation of the same generic name
+ * elsewhere in the app.
+ */
+@keyframes chat-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/**
+ * mic-pulse — Step 4.5's "Dictation/mic active" signature moment per
+ * docs/02_ThemeGuideline.md §9.2: "pulsing concentric rings (like a live
+ * waveform proxy) around the mic button while recording." A single ring
+ * element re-triggers this animation on a `setInterval`-driven `key` bump
+ * (see MicButton.tsx) to produce a continuous outward-pulse effect from
+ * one ring rather than needing several stacked DOM nodes.
+ */
+@keyframes mic-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+
+/**
+ * spin — extracted from App.jsx's PrepDimanche inline <style> tag
+ * (line 3260, "@keyframes spin"), used by its génération-in-progress
+ * loading glyph.
+ */
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* === Base reset === */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-bg);
+    color: var(--color-text-mid);
+    font-family: var(--font-ui);
+    font-size: var(--text-body-size);
+    line-height: var(--text-body-leading);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-variant-numeric: tabular-nums; /* §3.1 — numeric/data font rule as a safe global default */
+    /* Native-app feel: stop vertical rubber-banding on the outer page from
+       chaining into pull-to-refresh/bounce once any inner scroll container
+       (chat log, workout set list, journal history) hits its own edge. */
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    font-family: var(--font-display);
+    color: var(--color-navy);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
+
+  button,
+  [role="button"],
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [role="button"][aria-disabled="true"],
+  input[type="button"]:disabled,
+  input[type="submit"]:disabled {
+    cursor: not-allowed;
+  }
+
+  /* §2.3 — focus ring rule: never the browser default blue */
+  :focus-visible {
+    outline: 3px solid var(--color-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+/**
+ * §9.1 rule 3 — prefers-reduced-motion global handling.
+ * Every animation in the app must have a reduced/instant fallback; this is
+ * the app-wide safety net so nothing built later can accidentally skip it.
+ * Framer Motion and GSAP calls should still check this preference explicitly
+ * where a specific animation needs a genuinely different (not just shorter)
+ * reduced-motion treatment, but this covers the general case.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Hide scrollbar while preserving smooth scrolling */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Luxury slim gold-tinted scrollbar */
+.luxury-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.luxury-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.luxury-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(201, 168, 76, 0.35);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+.luxury-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(201, 168, 76, 0.8);
+}
+.luxury-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(201, 168, 76, 0.4) transparent;
+}
