@@ -165,7 +165,7 @@ Deno.serve(async (req: Request) => {
         { onConflict: "user_id,external_id" }
       );
       if (upsertError) {
-        console.log(JSON.stringify({ event: "google_calendar_sync_upsert_failed", error: upsertError.message, external_id: ev.id }));
+        console.log(JSON.stringify({ event: "google_calendar_sync_upsert_failed", error: upsertError.message, code: upsertError.code, external_id: ev.id }));
         skipped++;
       } else {
         imported++;

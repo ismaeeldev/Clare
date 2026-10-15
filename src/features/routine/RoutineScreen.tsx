@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ListChecks } from "lucide-react";
 import { AlertBox } from "@/components/ui/AlertBox";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { StatTile } from "@/components/ui/StatTile";
 import { ApiTimeoutError } from "@/lib/apiClient";
 import type { BuildSystemPromptRoutine } from "@/lib/buildSystemPrompt";
 import { loadLocal, saveLocal } from "@/lib/localStoragePlaceholder";
@@ -114,6 +115,7 @@ export function RoutineScreen({ userId, onRoutineUpdated }: RoutineScreenProps) 
   };
 
   const totalActive = (routine.quotidien?.length || 0) + (routine.hebdo?.length || 0) + (routine.mensuel?.length || 0);
+  const totalAvailable = ROUTINE_MENAGERE.quotidien.length + ROUTINE_MENAGERE.hebdo.length + ROUTINE_MENAGERE.mensuel.length;
 
   return (
     <div className="pb-24 lg:pb-8 font-ui">
@@ -153,6 +155,15 @@ export function RoutineScreen({ userId, onRoutineUpdated }: RoutineScreenProps) 
         />
 
         {error && <AlertBox text={error} type="warning" />}
+
+        {loaded && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <StatTile icon={<ListChecks size={16} />} value={`${totalActive}/${totalAvailable}`} label="Absorbées" valueColor="navy" />
+            <StatTile icon="☀️" value={(routine.quotidien?.length || 0)} label="Quotidien" valueColor="gold" />
+            <StatTile icon="📅" value={(routine.hebdo?.length || 0)} label="Hebdomadaire" valueColor="purple" />
+            <StatTile icon="📆" value={(routine.mensuel?.length || 0)} label="Mensuel" valueColor="green" />
+          </div>
+        )}
 
         {!loaded ? (
           <RoutineSkeleton />

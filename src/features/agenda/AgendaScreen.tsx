@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, CalendarDays, ListChecks, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InlineError } from "@/components/ui/InlineError";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { StatTile } from "@/components/ui/StatTile";
 import { useEntitlement } from "@/hooks/useEntitlement";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import {
@@ -223,6 +224,8 @@ export function AgendaScreen({ userId }: AgendaScreenProps) {
 
   const isEmpty = !loading && calendarItems.length === 0 && tasks.length === 0;
   const overlappingIds = findOverlappingIds(calendarItems);
+  const doneTaskCount = tasks.filter((t) => t.status === "done").length;
+  const openTaskCount = tasks.filter((t) => t.status === "open").length;
 
   const handleToggleConflict = async (item: CalendarItem) => {
     if (openConflictId === item.id) {
@@ -342,6 +345,16 @@ export function AgendaScreen({ userId }: AgendaScreenProps) {
         </div>
       </div>
 
+      {!isEmpty && !loading && (
+        <div className="px-5 pt-6 sm:px-6 lg:mx-auto lg:max-w-[1240px]">
+          <div className="grid grid-cols-3 gap-3 sm:gap-4">
+            <StatTile icon={<CalendarDays size={16} />} value={calendarItems.length} label="Rendez-vous" valueColor="navy" />
+            <StatTile icon={<ListChecks size={16} />} value={openTaskCount} label="Tâches ouvertes" valueColor="gold" />
+            <StatTile icon={<CheckCircle2 size={16} />} value={doneTaskCount} label="Terminées" valueColor="green" />
+          </div>
+        </div>
+      )}
+
       <div className="mx-auto max-w-[1240px] px-5 py-6 sm:px-6">
         {showAdd && (
           <Card style={{ border: "1.5px solid var(--color-gold)" }}>
@@ -415,9 +428,9 @@ export function AgendaScreen({ userId }: AgendaScreenProps) {
         <EmptyState icon="📅" title="Aucun rendez-vous cette semaine" description="Ajoute un événement ou demande à Claré." ctaLabel="Ajouter un événement" onCtaClick={() => setShowAdd(true)} />
       ) : (
         <div className="px-6 py-2 lg:mx-auto lg:max-w-[1240px]">
-          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:items-start">
+          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
             {/* Left Column: Rendez-vous */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 lg:col-span-7">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase text-meta" style={{ letterSpacing: "0.07em" }}>
                   📅 Rendez-vous ({calendarItems.length})
@@ -505,7 +518,7 @@ export function AgendaScreen({ userId }: AgendaScreenProps) {
             </div>
 
             {/* Right Column: Tâches */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 lg:col-span-5 lg:sticky lg:top-[11.5rem]">
               <div className="flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase text-meta" style={{ letterSpacing: "0.07em" }}>
                   ✓ Tâches ({tasks.length})

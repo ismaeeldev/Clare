@@ -16,7 +16,9 @@ import {
   CheckCircle2,
   AlertTriangle,
   HeartPulse,
-  LogOut
+  LogOut,
+  ListChecks,
+  MapPin
 } from "lucide-react";
 import { BackButton } from "@/components/ui/BackButton";
 import { Button } from "@/components/ui/Button";
@@ -300,6 +302,49 @@ function SettingsForm({
                   <div>
                     <p className="text-xs font-bold text-navy">Exporter mes données</p>
                     <p className="text-[11px] text-meta">Journal et finances (CSV/JSON)</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-meta transition-transform group-hover:translate-x-0.5 group-hover:text-navy" />
+              </div>
+            </Card>
+
+            {/* Routine and Lieux have no entry point anywhere else in the
+                app (not in DESKTOP_NAV_ITEMS, not in the mobile bottom tab
+                bar's 5-item NAV_ITEMS, no link from Home) — both are real
+                free features (ProtectedRoute only, no PremiumRoute), so
+                this isn't an intentional gate, just a missing link. Added
+                here as the closest fit to the existing Profile/Billing/
+                Historique quick-links pattern. */}
+            <Card
+              onClick={() => navigate("/routine")}
+              className="group cursor-pointer rounded-2xl border border-border/80 bg-white p-4.5 shadow-[0_2px_8px_rgba(26,31,60,0.03)] transition-all duration-200 hover:border-navy/20 hover:shadow-[0_4px_14px_rgba(26,31,60,0.06)]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-navy/10 text-navy">
+                    <ListChecks className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-navy">Routine ménagère</p>
+                    <p className="text-[11px] text-meta">Tâches récurrentes du foyer</p>
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 text-meta transition-transform group-hover:translate-x-0.5 group-hover:text-navy" />
+              </div>
+            </Card>
+
+            <Card
+              onClick={() => navigate("/lieux")}
+              className="group cursor-pointer rounded-2xl border border-border/80 bg-white p-4.5 shadow-[0_2px_8px_rgba(26,31,60,0.03)] transition-all duration-200 hover:border-navy/20 hover:shadow-[0_4px_14px_rgba(26,31,60,0.06)]"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-navy/10 text-navy">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-navy">Mes lieux récurrents</p>
+                    <p className="text-[11px] text-meta">Trajets et rendez-vous habituels</p>
                   </div>
                 </div>
                 <ChevronRight className="h-4 w-4 text-meta transition-transform group-hover:translate-x-0.5 group-hover:text-navy" />

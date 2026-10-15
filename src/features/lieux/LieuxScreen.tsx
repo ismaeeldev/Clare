@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, MapPin, Sparkles } from "lucide-react";
 import { AlertBox } from "@/components/ui/AlertBox";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { InlineError } from "@/components/ui/InlineError";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { StatTile } from "@/components/ui/StatTile";
 import { loadLocal, saveLocal } from "@/lib/localStoragePlaceholder";
 import { fetchLieux, saveLieux } from "@/lib/profileRepo";
 import { ApiTimeoutError } from "@/lib/apiClient";
@@ -139,6 +140,8 @@ export function LieuxScreen({ userId, onLieuxUpdated }: LieuxScreenProps) {
     parCategorie[l.categorie]?.push(l);
   });
 
+  const categoriesUsed = Object.values(parCategorie).filter((v) => v?.length).length;
+
   return (
     <div className="pb-24 lg:pb-8 font-ui">
       {/* Sleek Modern Top Bar */}
@@ -170,7 +173,7 @@ export function LieuxScreen({ userId, onLieuxUpdated }: LieuxScreenProps) {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3.5 px-6 py-5 lg:mx-auto lg:max-w-[1240px]">
+      <div className="flex flex-col gap-4 px-6 py-5 lg:mx-auto lg:max-w-[1240px]">
         <AlertBox
           text="Renseigne tes lieux récurrents une fois — Claré s'en souviendra pour t'aider à organiser tes trajets et regrouper tes RDV intelligemment."
           type="info"
@@ -178,103 +181,160 @@ export function LieuxScreen({ userId, onLieuxUpdated }: LieuxScreenProps) {
 
         {error && <InlineError message={error} />}
 
-        {!showAdd ? (
-          <Button variant="primary" size="lg" onClick={() => setShowAdd(true)} className="w-full">
-            + Ajouter un lieu
-          </Button>
-        ) : (
-          <Card style={{ border: "1.5px solid var(--color-gold)" }}>
-            <div className="flex flex-col gap-2.5">
-              <input
-                value={form.nom}
-                onChange={(e) => set("nom", e.target.value)}
-                placeholder="Nom du lieu (ex : Coiffeur Jean, École des enfants...)"
-                aria-label="Nom du lieu"
-                className="rounded-[10px] border border-border bg-bg px-[13px] py-[11px] font-ui text-sm text-text outline-none focus:border-navy"
-              />
-              <input
-                value={form.ville}
-                onChange={(e) => set("ville", e.target.value)}
-                placeholder="Ville / quartier (ex : Rennes centre, Saint-Malo...)"
-                aria-label="Ville"
-                className="rounded-[10px] border border-border bg-bg px-[13px] py-[11px] font-ui text-sm text-text outline-none focus:border-navy"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {CATEGORIES_LIEUX.map((c) => (
-                  <button
-                    key={c.val}
-                    onClick={() => set("categorie", c.val)}
-                    className="cursor-pointer rounded-[8px] border-none px-3 py-[7px] font-ui text-xs font-bold transition-opacity duration-200 hover:opacity-80"
-                    style={{ background: form.categorie === c.val ? c.colorVar : "var(--color-bg)", color: form.categorie === c.val ? "var(--color-white)" : "var(--color-text-mid)" }}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
-              <input
-                value={form.notes}
-                onChange={(e) => set("notes", e.target.value)}
-                placeholder="Notes (optionnel) — ex : ouvert le samedi, proche du RDV X..."
-                aria-label="Notes"
-                className="rounded-[10px] border border-border bg-bg px-[13px] py-[11px] font-ui text-sm text-text outline-none focus:border-navy"
-              />
-              <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => {
-                    setShowAdd(false);
-                    setForm(EMPTY_FORM);
-                  }}
-                  className="flex-1"
-                >
-                  Annuler
-                </Button>
-                <Button variant="primary" onClick={addLieu} disabled={!form.nom.trim() || !form.ville.trim() || saving} className="flex-[2]">
-                  {saving ? "Enregistrement..." : "Enregistrer"}
-                </Button>
-              </div>
-            </div>
-          </Card>
+        {loaded && lieux.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+            <StatTile icon={<MapPin size={16} />} value={lieux.length} label="Lieux enregistrés" valueColor="navy" />
+            <StatTile icon="🏠" value={parCategorie.domicile?.length || 0} label="Domicile" valueColor="purple" />
+            <StatTile icon="💼" value={parCategorie.travail?.length || 0} label="Travail" valueColor="gold" />
+            <StatTile icon={<Sparkles size={16} />} value={categoriesUsed} label="Catégories actives" valueColor="green" />
+          </div>
         )}
 
         {!loaded ? (
           <LieuxSkeleton />
-        ) : lieux.length === 0 && !showAdd ? (
-          <EmptyState icon="📍" title="Aucun lieu enregistré" description="Ajoute tes lieux récurrents pour aider Claré à organiser tes trajets." />
-        ) : null}
-
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-          {CATEGORIES_LIEUX.map((cat) => {
-            const items = parCategorie[cat.val];
-            if (!items?.length) return null;
-            return (
-              <div key={cat.val} className="flex flex-col gap-2.5">
-                <h3 className="text-xs font-bold uppercase" style={{ color: cat.colorVarText, letterSpacing: "0.07em" }}>
-                  {cat.label} ({items.length})
-                </h3>
-                {items.map((l) => (
-                  <Card key={l.id} className="p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="mb-0.5 break-words text-[14px] font-bold text-navy">{l.nom}</p>
-                        <p className="m-0 break-words text-xs text-meta font-medium">{l.ville}</p>
-                        {l.notes && <p className="mt-1 break-words text-xs italic text-text-mid">{l.notes}</p>}
-                      </div>
-                      <button
-                        onClick={() => removeLieu(l.id)}
-                        disabled={removingIds.has(l.id)}
-                        aria-label={`Supprimer ${l.nom}`}
-                        className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/60 bg-bg text-sm text-text-muted transition-colors duration-200 hover:bg-red-soft hover:text-red-text disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        ×
-                      </button>
+        ) : (
+          <div className="flex flex-col gap-4 lg:grid lg:grid-cols-12 lg:gap-8 lg:items-start">
+            {/* Left Column: Add form / existing lieux */}
+            <div className="flex flex-col gap-3.5 lg:col-span-7">
+              {!showAdd ? (
+                <Button variant="primary" size="lg" onClick={() => setShowAdd(true)} className="w-full">
+                  + Ajouter un lieu
+                </Button>
+              ) : (
+                <Card style={{ border: "1.5px solid var(--color-gold)" }}>
+                  <div className="flex flex-col gap-2.5">
+                    <input
+                      value={form.nom}
+                      onChange={(e) => set("nom", e.target.value)}
+                      placeholder="Nom du lieu (ex : Coiffeur Jean, École des enfants...)"
+                      aria-label="Nom du lieu"
+                      className="rounded-[10px] border border-border bg-bg px-[13px] py-[11px] font-ui text-sm text-text outline-none focus:border-navy"
+                    />
+                    <input
+                      value={form.ville}
+                      onChange={(e) => set("ville", e.target.value)}
+                      placeholder="Ville / quartier (ex : Rennes centre, Saint-Malo...)"
+                      aria-label="Ville"
+                      className="rounded-[10px] border border-border bg-bg px-[13px] py-[11px] font-ui text-sm text-text outline-none focus:border-navy"
+                    />
+                    <div className="flex flex-wrap gap-1.5">
+                      {CATEGORIES_LIEUX.map((c) => (
+                        <button
+                          key={c.val}
+                          onClick={() => set("categorie", c.val)}
+                          className="cursor-pointer rounded-[8px] border-none px-3 py-[7px] font-ui text-xs font-bold transition-opacity duration-200 hover:opacity-80"
+                          style={{ background: form.categorie === c.val ? c.colorVar : "var(--color-bg)", color: form.categorie === c.val ? "var(--color-white)" : "var(--color-text-mid)" }}
+                        >
+                          {c.label}
+                        </button>
+                      ))}
                     </div>
-                  </Card>
-                ))}
-              </div>
-            );
-          })}
-        </div>
+                    <input
+                      value={form.notes}
+                      onChange={(e) => set("notes", e.target.value)}
+                      placeholder="Notes (optionnel) — ex : ouvert le samedi, proche du RDV X..."
+                      aria-label="Notes"
+                      className="rounded-[10px] border border-border bg-bg px-[13px] py-[11px] font-ui text-sm text-text outline-none focus:border-navy"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setShowAdd(false);
+                          setForm(EMPTY_FORM);
+                        }}
+                        className="flex-1"
+                      >
+                        Annuler
+                      </Button>
+                      <Button variant="primary" onClick={addLieu} disabled={!form.nom.trim() || !form.ville.trim() || saving} className="flex-[2]">
+                        {saving ? "Enregistrement..." : "Enregistrer"}
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {lieux.length === 0 && !showAdd ? (
+                <EmptyState icon="📍" title="Aucun lieu enregistré" description="Ajoute tes lieux récurrents pour aider Claré à organiser tes trajets." />
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {CATEGORIES_LIEUX.map((cat) => {
+                    const items = parCategorie[cat.val];
+                    if (!items?.length) return null;
+                    return (
+                      <div key={cat.val} className="flex flex-col gap-2.5">
+                        <h3 className="text-xs font-bold uppercase" style={{ color: cat.colorVarText, letterSpacing: "0.07em" }}>
+                          {cat.label} ({items.length})
+                        </h3>
+                        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                          {items.map((l) => (
+                            <Card key={l.id} className="p-4">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="mb-0.5 break-words text-[14px] font-bold text-navy">{l.nom}</p>
+                                  <p className="m-0 break-words text-xs text-meta font-medium">{l.ville}</p>
+                                  {l.notes && <p className="mt-1 break-words text-xs italic text-text-mid">{l.notes}</p>}
+                                </div>
+                                <button
+                                  onClick={() => removeLieu(l.id)}
+                                  disabled={removingIds.has(l.id)}
+                                  aria-label={`Supprimer ${l.nom}`}
+                                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-border/60 bg-bg text-sm text-text-muted transition-colors duration-200 hover:bg-red-soft hover:text-red-text disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Why it matters */}
+            <div className="flex flex-col gap-3.5 lg:col-span-5 lg:sticky lg:top-24">
+              <Card className="p-5">
+                <h3 className="mb-3 flex items-center gap-2 text-[13px] font-bold text-navy">
+                  <Sparkles size={15} className="text-gold" />
+                  Pourquoi renseigner tes lieux ?
+                </h3>
+                <ul className="flex flex-col gap-2.5 text-[13px] text-text-mid">
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-gold">•</span>
+                    <span>Claré regroupe tes rendez-vous proches pour t'éviter des allers-retours inutiles.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-gold">•</span>
+                    <span>Tes lieux habituels sont suggérés automatiquement quand tu planifies un nouveau rendez-vous.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="mt-0.5 text-gold">•</span>
+                    <span>Plus Claré connaît tes trajets, plus ses rappels et son organisation sont pertinents.</span>
+                  </li>
+                </ul>
+              </Card>
+
+              <Card className="p-5">
+                <h3 className="mb-2 text-[13px] font-bold text-navy">Catégories disponibles</h3>
+                <div className="flex flex-wrap gap-1.5">
+                  {CATEGORIES_LIEUX.map((c) => (
+                    <span
+                      key={c.val}
+                      className="rounded-[8px] px-3 py-[7px] font-ui text-xs font-bold"
+                      style={{ background: "var(--color-bg)", color: c.colorVarText }}
+                    >
+                      {c.label}
+                    </span>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

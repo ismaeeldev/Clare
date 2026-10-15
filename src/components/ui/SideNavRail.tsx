@@ -12,7 +12,8 @@ import {
   Home,
   Bell,
   LogOut,
-  Lock
+  Lock,
+  CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useEntitlement } from "@/hooks/useEntitlement";
@@ -27,6 +28,7 @@ interface SideNavRailProps extends NavProps {
 
 const DESKTOP_NAV_ITEMS = [
   { key: "home", label: "Tableau de bord", href: "/home", icon: Home },
+  { key: "agenda", label: "Agenda", href: "/agenda", icon: CalendarDays },
   { key: "journal", label: "Journal quotidien", href: "/journal", icon: BookOpen },
   { key: "focus", label: "Mode focus", href: "/focus", icon: Target },
   { key: "nutrition", label: "Nutrition & Repas", href: "/nutrition", icon: Utensils },
