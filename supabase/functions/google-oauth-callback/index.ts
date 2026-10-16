@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const appUrl = Deno.env.get("APP_URL") ?? "https://clare.app";
+  const appUrl = Deno.env.get("APP_URL") ?? "https://clare-app-rho.vercel.app";
 
   try {
     const url = new URL(req.url);
