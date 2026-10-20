@@ -356,7 +356,7 @@ export function ChatScreen({ userId, initialMsg = "", onBack }: ChatScreenProps)
         try {
           const replan = await callEdgeFunction<{ proposal: { id: string; action_type: ActionType; proposed_fields: Record<string, unknown>; explanation: string } }>(
             "disruption-replan",
-            { conversation_id: activeConvId, message: text },
+            { conversation_id: activeConvId, message: text, idempotency_key: idempotencyKey },
             45000,
             () => setSlow(true)
           );

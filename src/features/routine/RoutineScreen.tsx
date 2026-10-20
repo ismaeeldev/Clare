@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw, ListChecks } from "lucide-react";
 import { AlertBox } from "@/components/ui/AlertBox";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -54,22 +54,34 @@ export function RoutineScreen({ userId, onRoutineUpdated }: RoutineScreenProps) 
   const [togglingKeys, setTogglingKeys] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
 
+  // Guards a fast userId change (e.g. sign-out/sign-in as a different
+  // user without a full page reload) from applying a slower, now-stale
+  // response for the PREVIOUS user after a newer load has already started
+  // — same pattern AgendaScreen/ChatScreen already use for their own
+  // request races.
+  const loadRequestRef = useRef(0);
+
   const loadRoutine = async (isManual = false) => {
+    const requestId = ++loadRequestRef.current;
     if (isManual || loaded) {
       setRefreshing(true);
     }
     if (userId) {
       try {
         const r = await fetchRoutine(userId);
+        if (loadRequestRef.current !== requestId) return;
         setRoutine(r || EMPTY_ROUTINE);
       } catch {
         const fallback = await loadLocal<Required<BuildSystemPromptRoutine>>("clare_routine");
+        if (loadRequestRef.current !== requestId) return;
         setRoutine(fallback || EMPTY_ROUTINE);
       }
     } else {
       const r = await loadLocal<Required<BuildSystemPromptRoutine>>("clare_routine");
+      if (loadRequestRef.current !== requestId) return;
       setRoutine(r || EMPTY_ROUTINE);
     }
+    if (loadRequestRef.current !== requestId) return;
     setLoaded(true);
     setRefreshing(false);
   };

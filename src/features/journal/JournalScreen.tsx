@@ -89,6 +89,13 @@ export function JournalScreen({ userId }: JournalScreenProps) {
     });
   };
 
+  // Guards a fast userId change (sign-out/sign-in as a different user
+  // without a full page reload) from applying a slower, now-stale
+  // response for the PREVIOUS user after a newer load has already
+  // started — same pattern AgendaScreen/ChatScreen already use for their
+  // own request races.
+  const loadRequestRef = useRef(0);
+
   const loadToday = async (isManual = false) => {
     // Manual refresh must never silently clobber text the user hasn't
     // saved yet (bug found in this pass: tapping ↻ while mid-entry wiped
@@ -101,6 +108,7 @@ export function JournalScreen({ userId }: JournalScreenProps) {
       );
       if (!proceed) return;
     }
+    const requestId = ++loadRequestRef.current;
     if (isManual || today) {
       setRefreshingToday(true);
     } else {
@@ -109,15 +117,19 @@ export function JournalScreen({ userId }: JournalScreenProps) {
     setLoadError("");
     try {
       const [entry, lastWo] = await Promise.all([fetchEntryForDate(userId, todayKey()), fetchLastWorkoutEntry(userId, todayKey())]);
+      if (loadRequestRef.current !== requestId) return;
       setToday(entry);
       applyEntry(entry);
       setLastWorkout(lastWo);
       if (entry) setSaveState("saved");
     } catch (err) {
+      if (loadRequestRef.current !== requestId) return;
       setLoadError(err instanceof ApiTimeoutError ? "Le chargement prend trop de temps. Vérifie ta connexion et réessaie." : "Le chargement a échoué.");
     } finally {
-      setLoadingToday(false);
-      setRefreshingToday(false);
+      if (loadRequestRef.current === requestId) {
+        setLoadingToday(false);
+        setRefreshingToday(false);
+      }
     }
   };
 

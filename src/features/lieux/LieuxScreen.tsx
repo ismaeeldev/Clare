@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw, MapPin, Sparkles } from "lucide-react";
 import { AlertBox } from "@/components/ui/AlertBox";
 import { Button } from "@/components/ui/Button";
@@ -56,22 +56,33 @@ export function LieuxScreen({ userId, onLieuxUpdated }: LieuxScreenProps) {
 
   const set = <K extends keyof LieuForm>(k: K, v: LieuForm[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Guards a fast userId change (sign-out/sign-in as a different user
+  // without a full page reload) from applying a slower, now-stale
+  // response for the PREVIOUS user after a newer load has already
+  // started — same pattern AgendaScreen/ChatScreen already use.
+  const loadRequestRef = useRef(0);
+
   const loadLieux = async (isManual = false) => {
+    const requestId = ++loadRequestRef.current;
     if (isManual || loaded) {
       setRefreshing(true);
     }
     if (userId) {
       try {
         const l = await fetchLieux(userId);
+        if (loadRequestRef.current !== requestId) return;
         setLieux(l || []);
       } catch {
         const fallback = await loadLocal<Lieu[]>("clare_lieux");
+        if (loadRequestRef.current !== requestId) return;
         setLieux(fallback || []);
       }
     } else {
       const l = await loadLocal<Lieu[]>("clare_lieux");
+      if (loadRequestRef.current !== requestId) return;
       setLieux(l || []);
     }
+    if (loadRequestRef.current !== requestId) return;
     setLoaded(true);
     setRefreshing(false);
   };

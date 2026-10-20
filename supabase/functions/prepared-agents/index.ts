@@ -88,7 +88,17 @@ Deno.serve(async (req: Request) => {
         .select("id, status")
         .single();
       if (error) {
-        console.log(JSON.stringify({ event: "prepared_agents_proposal_insert_failed", agent, error: error.message }));
+        // 23505 = unique_violation on idempotency_key — the select above
+        // raced with another near-simultaneous call for the same
+        // user/agent/day (e.g. Home re-mounting quickly, or two tabs) and
+        // lost; the other call's insert already committed the real row,
+        // so fetch and return THAT instead of silently dropping this
+        // proposal for the caller. Any other error still logs and no-ops.
+        if (error.code === "23505") {
+          const { data: raced } = await client.from("action_proposals").select("id, status").eq("idempotency_key", idempotencyKey).maybeSingle();
+          if (raced) return raced;
+        }
+        console.log(JSON.stringify({ event: "prepared_agents_proposal_insert_failed", agent, error: error.message, code: error.code }));
         return null;
       }
       return inserted;

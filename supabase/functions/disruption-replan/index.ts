@@ -64,6 +64,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const conversationId: string | undefined = body.conversation_id;
     const disruptionMessage: string = typeof body.message === "string" ? body.message : "";
+    const idempotencyKey: string | undefined = typeof body.idempotency_key === "string" ? body.idempotency_key : undefined;
     if (!disruptionMessage.trim()) {
       return new Response(JSON.stringify({ error: "message is required" }), { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } });
     }
@@ -130,22 +131,36 @@ Produis le diff minimal nécessaire pour réajuster le plan suite à cet imprév
     // Never writes weekly_plans directly (registry §2.3's hard guardrail)
     // — the diff becomes a replan_week action_proposals row, same
     // proposal→confirm→commit contract as every other AI-sourced write.
-    const { data: proposalRow, error: proposalError } = await client
-      .from("action_proposals")
-      .insert({
-        user_id: userId,
-        conversation_id: conversationId ?? null,
-        action_type: "replan_week",
-        proposed_fields: { week_start: weekStartKey, weekly_plan_id: acceptedPlan.id, diff: parsed.diff },
-        explanation: parsed.explanation,
-        status: "proposed",
-        prompt_version: PROMPT_VERSION,
-        model_id: "claude-sonnet-4-5",
-        idempotency_key: crypto.randomUUID(),
-      })
-      .select("id, action_type, proposed_fields, explanation")
-      .single();
-    if (proposalError) throw proposalError;
+    //
+    // Idempotency: ChatScreen generates one idempotencyKey per doSend call
+    // and reuses it on a manual "retry" tap (same key chat-respond already
+    // dedupes on) — this used to always mint a fresh crypto.randomUUID()
+    // here regardless, so retrying a disruption message created a second,
+    // duplicate replan_week proposal every time instead of being deduped
+    // like every other AI-sourced write in this app.
+    const replanIdempotencyKey = idempotencyKey ? `${idempotencyKey}:replan` : crypto.randomUUID();
+    const { data: existingProposal } = idempotencyKey
+      ? await client.from("action_proposals").select("id, action_type, proposed_fields, explanation").eq("idempotency_key", replanIdempotencyKey).maybeSingle()
+      : { data: null };
+    const proposalRow = existingProposal ?? await (async () => {
+      const { data: inserted, error: proposalError } = await client
+        .from("action_proposals")
+        .insert({
+          user_id: userId,
+          conversation_id: conversationId ?? null,
+          action_type: "replan_week",
+          proposed_fields: { week_start: weekStartKey, weekly_plan_id: acceptedPlan.id, diff: parsed.diff },
+          explanation: parsed.explanation,
+          status: "proposed",
+          prompt_version: PROMPT_VERSION,
+          model_id: "claude-sonnet-4-5",
+          idempotency_key: replanIdempotencyKey,
+        })
+        .select("id, action_type, proposed_fields, explanation")
+        .single();
+      if (proposalError) throw proposalError;
+      return inserted;
+    })();
 
     return new Response(JSON.stringify({ proposal: proposalRow }), { headers: { ...corsHeaders, "content-type": "application/json" } });
   } catch (err) {

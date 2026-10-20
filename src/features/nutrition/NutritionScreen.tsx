@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   RefreshCw,
@@ -173,8 +173,15 @@ export function NutritionScreen({ userId, journal = [], profile }: NutritionScre
     })();
   }, []);
 
+  // Guards a fast userId/weekStart change (sign-out/sign-in as a
+  // different user without a full page reload, or quick week switching)
+  // from applying a slower, now-stale response after a newer load has
+  // already started — same pattern AgendaScreen/ChatScreen already use.
+  const loadRequestRef = useRef(0);
+
   const loadPlan = async (isManual = false) => {
     if (!userId) return;
+    const requestId = ++loadRequestRef.current;
     if (isManual || mealPlan) {
       setRefreshingPlan(true);
     } else {
@@ -182,13 +189,17 @@ export function NutritionScreen({ userId, journal = [], profile }: NutritionScre
     }
     try {
       const [plan, checksMap] = await Promise.all([fetchMealPlan(userId, weekStart), fetchShoppingChecks(userId, weekStart)]);
+      if (loadRequestRef.current !== requestId) return;
       setMealPlan(plan);
       setChecks(checksMap);
     } catch {
+      if (loadRequestRef.current !== requestId) return;
       if (!mealPlan) setMealPlan([]);
     } finally {
-      setLoadingPlan(false);
-      setRefreshingPlan(false);
+      if (loadRequestRef.current === requestId) {
+        setLoadingPlan(false);
+        setRefreshingPlan(false);
+      }
     }
   };
 
@@ -204,8 +215,14 @@ export function NutritionScreen({ userId, journal = [], profile }: NutritionScre
     // Defense in depth, matching meal-plan-generate's own server-side
     // entitlement.ts check (CLA-FR-021: a UI-only gate alone is
     // insufficient) — this just avoids a free user waiting out a 90s
-    // generation call only to get a 402 at the end.
-    if (!userId || !aiEntitled) return;
+    // generation call only to get a 402 at the end. The `generating`
+    // check guards re-entrancy: this is wired to multiple trigger points
+    // (EmptyState CTA, "Réessayer", "Régénérer"), and React doesn't apply
+    // the resulting `disabled` DOM attribute synchronously within the
+    // same click handler, so two rapid taps before the first setState
+    // commits could otherwise both start an overlapping 90s generation
+    // call racing to setMealPlan.
+    if (!userId || !aiEntitled || generating) return;
     setGenerating(true);
     setGenerateError("");
     try {
@@ -247,7 +264,9 @@ export function NutritionScreen({ userId, journal = [], profile }: NutritionScre
   };
 
   const genRecette = async () => {
-    if (!recetteEnvie.trim() || !aiEntitled) return;
+    // Same re-entrancy guard as genPlan above — this has both a button
+    // click and an Enter-key trigger point.
+    if (!recetteEnvie.trim() || !aiEntitled || loadingRecette) return;
     setLoadingRecette(true);
     try {
       const parsed = await callEdgeFunction<NutritionRecette>("nutrition-recette", { envie: recetteEnvie }, 40000);

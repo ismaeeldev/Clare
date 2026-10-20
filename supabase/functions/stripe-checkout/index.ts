@@ -3,12 +3,14 @@
 // (TODO_CLIENT_PRICING — docs/01_ScopeDocument.md §6: no real pricing
 // decision has been made yet; STRIPE_PRICE_ID is a placeholder env var
 // until then, see docs/PAYMENT_SETUP.md). Returns the session URL for the
-// client to redirect to — this function never touches `subscriptions`
-// directly; that only happens via stripe-webhook once Stripe confirms the
-// payment (CLA-FR-021: entitlement is granted server-side, only after
-// webhook confirmation, never optimistically on the client).
+// client to redirect to. The only write this function makes to
+// `subscriptions` is the non-entitling 'incomplete' claim-lock row below
+// (migration 0021) — actual entitlement is still granted server-side only
+// by stripe-webhook once Stripe confirms payment (CLA-FR-021: never
+// optimistically on the client).
 import { corsHeaders } from "../_shared/cors.ts";
 import { getUserClient, getUserId } from "../_shared/auth.ts";
+import { getServiceClient } from "../_shared/serviceClient.ts";
 import { getStripeClient, getPriceId } from "../_shared/stripeClient.ts";
 import { checkEntitlement } from "../_shared/entitlement.ts";
 
@@ -34,6 +36,27 @@ Deno.serve(async (req: Request) => {
     const { entitled } = await checkEntitlement(client, userId);
     if (entitled) {
       return new Response(JSON.stringify({ error: "Tu as déjà un abonnement actif." }), {
+        status: 409,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+
+    // Atomic claim against a double-tap / two-tabs race: checkEntitlement
+    // above only catches an ALREADY-active subscription — two
+    // near-simultaneous requests from a not-yet-subscribed user would both
+    // pass that check and both create a real Stripe session, since
+    // subscriptions is only written later by stripe-webhook. This RPC
+    // (migration 0021) claims a short-lived 'incomplete' placeholder row;
+    // only one concurrent caller can ever get claimed:true.
+    const { data: claimed, error: claimError } = await getServiceClient().rpc("claim_checkout_lock", { p_user_id: userId });
+    if (claimError) {
+      return new Response(JSON.stringify({ error: "Impossible de démarrer le paiement — réessaie." }), {
+        status: 500,
+        headers: { ...corsHeaders, "content-type": "application/json" },
+      });
+    }
+    if (!claimed) {
+      return new Response(JSON.stringify({ error: "Une session de paiement est déjà en cours. Réessaie dans quelques instants." }), {
         status: 409,
         headers: { ...corsHeaders, "content-type": "application/json" },
       });

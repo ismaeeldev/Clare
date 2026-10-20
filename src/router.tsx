@@ -24,6 +24,7 @@ import { SignInScreen } from "@/features/auth/SignInScreen";
 import { SignUpScreen } from "@/features/auth/SignUpScreen";
 import { ForgotPasswordScreen } from "@/features/auth/ForgotPasswordScreen";
 import { ResetPasswordScreen } from "@/features/auth/ResetPasswordScreen";
+import { NotFoundScreen } from "@/features/not-found/NotFoundScreen";
 
 /**
  * Every post-auth screen is route-split via React.lazy rather than imported
@@ -69,6 +70,18 @@ function Lazy({ children }: { children: ReactNode }) {
 }
 
 export const router = createBrowserRouter([
+  {
+    // Pathless root wrapper — its errorElement applies to every child
+    // below via React Router's error-bubbling, so a thrown render error
+    // anywhere in the tree lands on this one recoverable screen instead of
+    // the bare default error page. The "*" child is the catch-all for any
+    // unmatched path (mistyped URL, a removed route, a stale notification
+    // deep_link). Both gaps were found missing during a navigation audit,
+    // alongside the already-fixed Vercel SPA-rewrite 404 (same underlying
+    // issue, client-side half).
+    errorElement: <NotFoundScreen />,
+    children: [
+  { path: "*", element: <NotFoundScreen /> },
   { path: "/", element: <GuestRoute><SignInScreen /></GuestRoute> },
   { path: "/sign-in", element: <GuestRoute><SignInScreen /></GuestRoute> },
   { path: "/sign-up", element: <GuestRoute><SignUpScreen /></GuestRoute> },
@@ -347,4 +360,6 @@ export const router = createBrowserRouter([
   // the current step in component state rather than the URL, so the step
   // isn't reflected in the address bar or deep-linkable — a cosmetic gap,
   // not a data-loss one.
+    ],
+  },
 ]);
