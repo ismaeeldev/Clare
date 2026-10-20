@@ -18,5 +18,5 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "chat", label: "Chat", href: "/chat", icon: MessageCircle },
   { key: "agenda", label: "Agenda", href: "/agenda", icon: CalendarDays },
   { key: "journal", label: "Journal", href: "/journal", icon: BookOpen },
-  { key: "more", label: "Plus", href: "/settings", icon: MoreHorizontal },
+  { key: "more", label: "Plus", href: "/menu", icon: MoreHorizontal },
 ];

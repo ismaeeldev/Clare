@@ -53,6 +53,7 @@ const NotificationsRoute = lazy(() => import("@/features/notifications/Notificat
 const BillingRoute = lazy(() => import("@/features/billing/BillingRoute").then((m) => ({ default: m.BillingRoute })));
 const AdminRoute = lazy(() => import("@/features/admin/AdminRoute").then((m) => ({ default: m.AdminRoute })));
 const SettingsRoute = lazy(() => import("@/features/settings/SettingsRoute").then((m) => ({ default: m.SettingsRoute })));
+const MoreMenuScreen = lazy(() => import("@/features/more/MoreMenuScreen").then((m) => ({ default: m.MoreMenuScreen })));
 const LiveWorkoutRoute = lazy(() => import("@/features/workout/LiveWorkoutRoute").then((m) => ({ default: m.LiveWorkoutRoute })));
 
 function RouteFallback() {
@@ -293,6 +294,25 @@ export const router = createBrowserRouter([
         <AppShell>
           <Lazy>
             <SettingsRoute />
+          </Lazy>
+        </AppShell>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    // Mobile's bottom-tab "Plus" destination — a dedicated nav hub for
+    // every screen that doesn't get its own tab (Mode focus, Nutrition,
+    // Stats, Workout, Idées, Notifications, Routine, Lieux), since the
+    // 5-item tab bar can't fit them and they previously had NO reachable
+    // entry point on mobile at all. Desktop never sees this route (its
+    // SideNavRail already lists everything), but it's not route-gated to
+    // mobile-only — a direct visit still renders correctly either way.
+    path: "/menu",
+    element: (
+      <ProtectedRoute>
+        <AppShell>
+          <Lazy>
+            <MoreMenuScreen />
           </Lazy>
         </AppShell>
       </ProtectedRoute>
