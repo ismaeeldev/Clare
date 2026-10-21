@@ -9,6 +9,33 @@ import { z } from "npm:zod@4";
  * this directory replaces).
  */
 
+/**
+ * Defense-in-depth for an array-of-strings tool-use field: live diagnostic
+ * logging on prep-dimanche-brief (a client report of "courses: expected
+ * array, received string") showed Claude occasionally returning a plain
+ * comma-separated string for a field whose JSON schema explicitly
+ * declares `type: "array"`, with `stop_reason: "tool_use"` (a clean,
+ * non-truncated completion) — a genuine tool-use schema-adherence quirk,
+ * not a token-budget/truncation issue. A JSON Schema `type: "array"`
+ * hint alone doesn't guarantee Claude's output conforms, the same
+ * reason ActionProposalCard.tsx already normalizes a drifted
+ * "income"/"expense" value instead of trusting the schema blindly. Any
+ * other array-of-strings field in a tool-use response carries the same
+ * risk, so this coerces rather than being applied ad hoc to just the one
+ * field that happened to get caught in testing.
+ */
+function looseStringArray() {
+  return z.preprocess((val) => {
+    if (typeof val === "string") {
+      return val
+        .split(/[,;\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    return val;
+  }, z.array(z.string()));
+}
+
 export const actionProposalSchema = z.object({
   action_type: z.enum(["create_task", "create_calendar_item", "create_finance_entry", "replan_week", "create_idea", "update_journal_state"]),
   proposed_fields: z.record(z.string(), z.unknown()),
@@ -92,12 +119,12 @@ export type SportSessionPlan = z.infer<typeof sportSessionPlanSchema>;
 // docs/06_AIPromptRegistry.md §2.5 + §2.6 prep-dimanche-brief
 export const prepDimancheSummarySchema = z.object({
   resume: z.string(),
-  priorites: z.array(z.string()).optional(),
+  priorites: looseStringArray().optional(),
   miroir_projets: z.string().optional(),
-  ne_pas_faire: z.array(z.string()).optional(),
+  ne_pas_faire: looseStringArray().optional(),
   finances: z.string().optional(),
   motivation: z.string().optional(),
-  courses: z.array(z.string()).optional(),
+  courses: looseStringArray().optional(),
 });
 export type PrepDimancheSummary = z.infer<typeof prepDimancheSummarySchema>;
 
@@ -109,8 +136,8 @@ export const prepDimanchePlanSchema = z.object({
       alerte: z.string().nullable().optional(),
       conseil: z.string().optional(),
       tache_1: z.string().optional(),
-      taches_3: z.array(z.string()).optional(),
-      taches_5: z.array(z.string()).optional(),
+      taches_3: looseStringArray().optional(),
+      taches_5: looseStringArray().optional(),
       repasMidi: z.string().optional(),
       repasSoir: z.string().optional(),
     })

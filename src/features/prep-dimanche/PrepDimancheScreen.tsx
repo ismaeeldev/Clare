@@ -139,14 +139,14 @@ export function PrepDimancheScreen({ userId, profile, journal, agenda, finances,
           coherenceGlobal: coherence.global,
           routine,
         },
-        // Was 60000 — the server's own per-call Claude budget is 48s
-        // (prep-dimanche-brief/index.ts's CLAUDE_TIMEOUT_MS), and a real
-        // live test against production took 51.7s end-to-end, leaving
-        // only ~8s margin against a 60s client timeout. Given real AI
-        // latency variance, bumped to 75s so a slightly slower real
-        // generation doesn't reintroduce the exact "fails because the
-        // client gives up first" race this whole fix exists to close.
-        75000
+        // Was 75000 — a 2nd round of live diagnostic logging found the
+        // real root cause was max_tokens truncation, not just a tight
+        // timeout (prep-dimanche-brief/index.ts's token budgets were
+        // raised substantially). Bigger budgets mean longer real
+        // generation time, so this needs to grow with the server's own
+        // CLAUDE_TIMEOUT_MS (now 90s) plus margin for buildFullContext's
+        // DB work and response serialization.
+        110000
       );
       setBrief(parsed);
       // Legacy local slot — no longer the source of truth (HomeRoute reads
