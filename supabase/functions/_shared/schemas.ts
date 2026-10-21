@@ -10,7 +10,7 @@ import { z } from "npm:zod@4";
  */
 
 export const actionProposalSchema = z.object({
-  action_type: z.enum(["create_task", "create_calendar_item", "create_finance_entry", "replan_week"]),
+  action_type: z.enum(["create_task", "create_calendar_item", "create_finance_entry", "replan_week", "create_idea", "update_journal_state"]),
   proposed_fields: z.record(z.string(), z.unknown()),
   confidence: z.number().min(0).max(1).optional(),
   explanation: z.string(),
@@ -18,9 +18,19 @@ export const actionProposalSchema = z.object({
 export type ActionProposal = z.infer<typeof actionProposalSchema>;
 
 // docs/06_AIPromptRegistry.md §2.1 chat-respond
+// detected_action_proposals is an ARRAY (previously a single optional
+// object) — a user report confirmed a single message containing a
+// revenue entry + an expense + an appointment + an idea only ever
+// produced ONE proposal card (whichever the model emitted last), and for
+// the idea specifically — not a valid action_type in the old enum at
+// all — the model had no structured way to express it and just claimed
+// in reply_text that it had been noted, with nothing actually written
+// anywhere. create_idea/update_journal_state were already fully
+// supported client-side (ActionProposalCard.tsx, used by clerk-extract's
+// brain-dump flow) but never reachable from normal chat.
 export const chatRespondOutputSchema = z.object({
   reply_text: z.string(),
-  detected_action_proposal: actionProposalSchema.optional(),
+  detected_action_proposals: z.array(actionProposalSchema).optional(),
   quick_replies: z.array(z.string()).optional(),
 });
 export type ChatRespondOutput = z.infer<typeof chatRespondOutputSchema>;

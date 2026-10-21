@@ -19,6 +19,7 @@ import { callClaudeStructured, logTokenUsage, type ClaudeMessage } from "../_sha
 import { chatRespondOutputSchema } from "../_shared/schemas.ts";
 import { checkDailyMessageLimit } from "../_shared/rateLimit.ts";
 import { checkEntitlement } from "../_shared/entitlement.ts";
+import { buildDateContextText } from "../_shared/dateContext.ts";
 
 const MAX_TOKENS = 1000;
 const MAX_HISTORY_MESSAGES = 20;
@@ -26,6 +27,8 @@ const PROMPT_VERSION = "chat-respond-v1";
 
 function buildSystemPrompt(ctx: Awaited<ReturnType<typeof buildCompactContext>>): string {
   return `Tu es Claré, l'assistant de vie personnel d'un(e) entrepreneur(se) indépendant(e) français(e). Ton direct et bienveillant, jamais corporate.
+
+${buildDateContextText()}
 
 Contexte réel de l'utilisateur (n'invente RIEN au-delà de ces faits) :
 - Prénom : ${ctx.displayName || "non renseigné"}
@@ -35,11 +38,13 @@ Contexte réel de l'utilisateur (n'invente RIEN au-delà de ces faits) :
 
 RÈGLES STRICTES :
 1. N'invente aucun fait qui n'est pas dans ce contexte ou dans le message de l'utilisateur.
-2. Si l'utilisateur demande une action concrète (ajouter un rendez-vous, noter une dépense/un revenu, créer une tâche), tu DOIS renvoyer un objet detected_action_proposal — ne dis JAMAIS dans reply_text que tu l'as fait, tu ne fais que PROPOSER, l'utilisateur confirme ensuite.
+2. Si l'utilisateur mentionne une ou plusieurs actions concrètes dans un seul message (ajouter un rendez-vous, noter une dépense/un revenu, créer une tâche, noter une idée, signaler un état d'énergie/humeur), tu DOIS renvoyer UN objet dans detected_action_proposals PAR élément détecté — jamais un seul objet qui résume plusieurs faits, jamais un fait omis. Si le message contient 4 faits distincts, renvoie 4 objets. Ne dis JAMAIS dans reply_text qu'un fait a été noté/ajouté/enregistré sans lui avoir donné son propre objet dans detected_action_proposals — tu ne fais que PROPOSER, l'utilisateur confirme ensuite chaque proposition séparément.
 3. Types d'action valides et leurs champs EXACTS dans proposed_fields (n'utilise AUCUN autre nom de champ ni AUCUNE autre valeur que celles listées) :
    - create_task : { "title": string, "due_date": string au format YYYY-MM-DD ou "tomorrow" ou null }
-   - create_calendar_item : { "title": string, "date": string au format YYYY-MM-DD ou "tomorrow", "time": string au format HH:MM }
+   - create_calendar_item : { "title": string, "date": string au format YYYY-MM-DD (utilise la table des 7 prochains jours ci-dessus pour toute référence relative — jamais "tomorrow" seul si une table est disponible, et ne calcule jamais une date toi-même), "time": string au format HH:MM }
    - create_finance_entry : { "amount": number, "type": EXACTEMENT "revenue" ou "expense" (jamais "income", "depense", ou toute autre valeur), "date": string au format YYYY-MM-DD ou "today", "category": string ou null }
+   - create_idea : { "text": string, "category": EXACTEMENT "perso" ou "pro" }
+   - update_journal_state : { "note": string, "energy_delta": number ou null }
    - replan_week : { "reason": string }
 4. Ne donne aucun conseil médical.`;
 }
@@ -135,15 +140,21 @@ Deno.serve(async (req: Request) => {
         type: "object",
         properties: {
           reply_text: { type: "string" },
-          detected_action_proposal: {
-            type: "object",
-            properties: {
-              action_type: { type: "string", enum: ["create_task", "create_calendar_item", "create_finance_entry", "replan_week"] },
-              proposed_fields: { type: "object" },
-              confidence: { type: "number" },
-              explanation: { type: "string" },
+          detected_action_proposals: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                action_type: {
+                  type: "string",
+                  enum: ["create_task", "create_calendar_item", "create_finance_entry", "replan_week", "create_idea", "update_journal_state"],
+                },
+                proposed_fields: { type: "object" },
+                confidence: { type: "number" },
+                explanation: { type: "string" },
+              },
+              required: ["action_type", "proposed_fields", "explanation"],
             },
-            required: ["action_type", "proposed_fields", "explanation"],
           },
           quick_replies: { type: "array", items: { type: "string" } },
         },
@@ -163,6 +174,7 @@ Deno.serve(async (req: Request) => {
     // client's single key per-row so the user/assistant/proposal rows each
     // get their own distinct-but-derived key rather than colliding with
     // each other under the same unique index.
+    const proposals = parsed.detected_action_proposals ?? [];
     const assistantIdempotencyKey = idempotencyKey ? `${idempotencyKey}:assistant` : undefined;
     const assistantInsert = assistantIdempotencyKey
       ? client
@@ -172,7 +184,7 @@ Deno.serve(async (req: Request) => {
             user_id: userId,
             role: "assistant",
             content: parsed.reply_text,
-            metadata: parsed.detected_action_proposal ? { has_action_proposal: true } : {},
+            metadata: proposals.length > 0 ? { has_action_proposal: true } : {},
             idempotency_key: assistantIdempotencyKey,
           })
           .select("id")
@@ -181,45 +193,51 @@ Deno.serve(async (req: Request) => {
           user_id: userId,
           role: "assistant",
           content: parsed.reply_text,
-          metadata: parsed.detected_action_proposal ? { has_action_proposal: true } : {},
+          metadata: proposals.length > 0 ? { has_action_proposal: true } : {},
         });
     const { error: insertAssistantMsgError } = await assistantInsert;
     if (insertAssistantMsgError && insertAssistantMsgError.code !== "23505") throw insertAssistantMsgError;
 
-    let actionProposalId: string | null = null;
-    if (parsed.detected_action_proposal) {
-      const proposalIdempotencyKey = idempotencyKey ? `${idempotencyKey}:proposal` : crypto.randomUUID();
-      // A retried request with the same key hits the unique-index conflict
-      // on insert; fetch the already-created row instead of erroring, so
-      // the retry still returns a usable action_proposal_id.
+    // One action_proposals row PER detected item (previously a single
+    // optional object) — a user report confirmed a message with 4
+    // distinct facts (revenue + expense + appointment + idea) only ever
+    // produced one proposal card. Each item gets its own idempotency key,
+    // derived from the client's single per-send key when present (same
+    // retry-dedup discipline as the user/assistant message inserts
+    // above) so a retried request can't create duplicate proposals for
+    // items that already landed on a prior attempt.
+    const insertedProposals: { id: string; action_type: string; proposed_fields: Record<string, unknown>; explanation: string }[] = [];
+    for (let i = 0; i < proposals.length; i++) {
+      const proposal = proposals[i];
+      const proposalIdempotencyKey = idempotencyKey ? `${idempotencyKey}:proposal:${i}` : crypto.randomUUID();
       const { data: existingProposal } = idempotencyKey
-        ? await client.from("action_proposals").select("id").eq("idempotency_key", proposalIdempotencyKey).maybeSingle()
+        ? await client.from("action_proposals").select("id, action_type, proposed_fields, explanation").eq("idempotency_key", proposalIdempotencyKey).maybeSingle()
         : { data: null };
       if (existingProposal) {
-        actionProposalId = existingProposal.id;
-      } else {
-        const { data: proposalRow, error: proposalError } = await client
-          .from("action_proposals")
-          .insert({
-            user_id: userId,
-            conversation_id: conversationId,
-            action_type: parsed.detected_action_proposal.action_type,
-            proposed_fields: parsed.detected_action_proposal.proposed_fields,
-            confidence: parsed.detected_action_proposal.confidence ?? null,
-            explanation: parsed.detected_action_proposal.explanation,
-            status: "proposed",
-            prompt_version: PROMPT_VERSION,
-            model_id: "claude-sonnet-4-5",
-            idempotency_key: proposalIdempotencyKey,
-          })
-          .select("id")
-          .single();
-        if (proposalError) throw proposalError;
-        actionProposalId = proposalRow.id;
+        insertedProposals.push(existingProposal);
+        continue;
       }
+      const { data: proposalRow, error: proposalError } = await client
+        .from("action_proposals")
+        .insert({
+          user_id: userId,
+          conversation_id: conversationId,
+          action_type: proposal.action_type,
+          proposed_fields: proposal.proposed_fields,
+          confidence: proposal.confidence ?? null,
+          explanation: proposal.explanation,
+          status: "proposed",
+          prompt_version: PROMPT_VERSION,
+          model_id: "claude-sonnet-4-5",
+          idempotency_key: proposalIdempotencyKey,
+        })
+        .select("id, action_type, proposed_fields, explanation")
+        .single();
+      if (proposalError) throw proposalError;
+      insertedProposals.push(proposalRow);
     }
 
-    return new Response(JSON.stringify({ ...parsed, action_proposal_id: actionProposalId }), {
+    return new Response(JSON.stringify({ reply_text: parsed.reply_text, quick_replies: parsed.quick_replies, action_proposals: insertedProposals }), {
       headers: { ...corsHeaders, "content-type": "application/json" },
     });
   } catch (err) {

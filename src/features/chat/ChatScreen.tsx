@@ -387,29 +387,40 @@ export function ChatScreen({ userId, initialMsg = "", onBack }: ChatScreenProps)
 
       const result = await callEdgeFunction<{
         reply_text: string;
-        detected_action_proposal?: { action_type: ActionType; proposed_fields: Record<string, unknown>; explanation: string };
-        action_proposal_id?: string | null;
+        action_proposals?: { id: string; action_type: ActionType; proposed_fields: Record<string, unknown>; explanation: string }[];
       }>("chat-respond", { conversation_id: activeConvId, message: text, idempotency_key: idempotencyKey }, 45000, () => setSlow(true));
 
       if (!mountedRef.current) return;
+      const proposals = result.action_proposals ?? [];
+      // One bubble for the conversational reply (already persisted
+      // server-side), plus one additional bubble per detected item
+      // carrying its own card — mirrors the brain-dump flow's existing
+      // multi-proposal rendering (endBrainDump below) so a message with
+      // several distinct facts (e.g. a revenue entry + an appointment +
+      // an idea) shows one confirmable card per fact instead of silently
+      // dropping all but one. Each proposal bubble is persisted via
+      // insertMessage with action_proposal_id in metadata — without this,
+      // the card would render now but vanish on the next page reload,
+      // since toDisplayMessage only reconstructs actionProposal from a
+      // stored message's metadata.action_proposal_id, the same
+      // reload-persistence convention brain-dump's proposals already use.
+      const savedProposalMsgs = proposals.length > 0
+        ? await Promise.all(proposals.map((p) => insertMessage(activeConvId, userId, "assistant", p.explanation, { action_proposal_id: p.id })))
+        : [];
+      if (!mountedRef.current) return;
       setMessages((m) => [
         ...m,
-        {
-          id: `assistant-${crypto.randomUUID()}`,
-          role: "assistant",
-          text: result.reply_text,
-          time: timeFr(),
-          actionProposal:
-            result.detected_action_proposal && result.action_proposal_id
-              ? {
-                  id: result.action_proposal_id,
-                  actionType: result.detected_action_proposal.action_type,
-                  proposedFields: result.detected_action_proposal.proposed_fields,
-                  explanation: result.detected_action_proposal.explanation,
-                  createdAt: new Date().toISOString(),
-                }
-              : undefined,
-        },
+        { id: `assistant-${crypto.randomUUID()}`, role: "assistant", text: result.reply_text, time: timeFr() },
+        ...savedProposalMsgs.map((saved, i) => ({
+          ...toDisplayMessage(saved),
+          actionProposal: {
+            id: proposals[i].id,
+            actionType: proposals[i].action_type,
+            proposedFields: proposals[i].proposed_fields,
+            explanation: proposals[i].explanation,
+            createdAt: new Date().toISOString(),
+          },
+        })),
       ]);
     } catch (err) {
       if (mountedRef.current) {

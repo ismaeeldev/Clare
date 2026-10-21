@@ -16,6 +16,7 @@ import { callClaudeStructured, logTokenUsage } from "../_shared/claude.ts";
 import { clerkExtractOutputSchema } from "../_shared/schemas.ts";
 import { checkDailyMessageLimit } from "../_shared/rateLimit.ts";
 import { checkEntitlement } from "../_shared/entitlement.ts";
+import { buildDateContextText } from "../_shared/dateContext.ts";
 
 const MAX_TOKENS = 1500;
 const PROMPT_VERSION = "clerk-extract-v1";
@@ -65,25 +66,12 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "text is required" }), { status: 400, headers: { ...corsHeaders, "content-type": "application/json" } });
     }
 
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-    // Give the model the day-of-week name directly instead of making it
-    // compute weekday-from-date itself — that arithmetic is exactly the
-    // kind of thing LLMs get wrong (observed in testing: "vendredi" from a
-    // Wednesday resolved to the wrong Friday, off by one day).
-    const WEEKDAYS_FR = ["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"];
-    const todayWeekday = WEEKDAYS_FR[now.getUTCDay()];
-    const NEXT_7_DAYS_FR = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(now);
-      d.setUTCDate(d.getUTCDate() + i + 1);
-      return `${WEEKDAYS_FR[d.getUTCDay()]}=${d.toISOString().split("T")[0]}`;
-    }).join(", ");
     const { result, usage } = await callClaudeStructured({
       systemPrompt: SYSTEM_PROMPT,
       messages: [
         {
           role: "user",
-          content: `Date d'aujourd'hui : ${today} (${todayWeekday}). Table des 7 prochains jours pour résoudre les références relatives ("demain", "vendredi", "vendredi prochain") — utilise EXACTEMENT ces dates, ne recalcule rien toi-même : ${NEXT_7_DAYS_FR}.\n\nTexte du vide-tête :\n${brainDumpText}`,
+          content: `${buildDateContextText()}\n\nTexte du vide-tête :\n${brainDumpText}`,
         },
       ],
       toolName: "extract_facts",

@@ -20,6 +20,7 @@ import { checkDailyMessageLimit } from "../_shared/rateLimit.ts";
 import { getWeekStartKey } from "../_shared/weekDates.ts";
 import { checkEntitlement } from "../_shared/entitlement.ts";
 import { disruptionDiffSchema } from "../_shared/schemas.ts";
+import { buildDateContextText } from "../_shared/dateContext.ts";
 
 const MAX_TOKENS = 2000;
 const PROMPT_VERSION = "disruption-replan-v1";
@@ -90,8 +91,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const today = new Date().toISOString().split("T")[0];
-    const msg = `Date d'aujourd'hui : ${today}.
+    const msg = `${buildDateContextText()}
 
 Plan de semaine actuellement accepté :
 ${JSON.stringify(acceptedPlan.plan, null, 2)}
