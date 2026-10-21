@@ -49,6 +49,21 @@ export interface MealTotals {
 function normalize(s: string): string {
   return s
     .toLowerCase()
+    // œ/æ are single ligature codepoints, not precomposed accented
+    // letters — NFD decomposition below only splits accents off letters
+    // like é→e+´, it does NOT decompose a ligature into its two letters.
+    // Left unhandled, the tokenizer's later `[^a-z0-9\s]` strip treats œ
+    // as punctuation and silently drops it, mangling "œufs" into "ufs"
+    // and "bœuf" into just "uf" (losing the leading "b" too, since the
+    // dropped œ splits the word in two) — neither can ever match
+    // CIQUAL's real "Oeuf cru"/"Boeuf..." entries (spelled with plain
+    // letters, not the ligature). Found live: every meal plan's eggs and
+    // beef were showing as unresolved ("not_found") despite both being
+    // common CIQUAL entries, contributing to entire days totaling 0 kcal
+    // when every ingredient in every meal happened to be similarly
+    // affected.
+    .replace(/œ/g, "oe")
+    .replace(/æ/g, "ae")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .trim();
