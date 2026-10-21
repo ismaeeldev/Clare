@@ -18,7 +18,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 const ENTITLED_STATUSES = new Set(["active", "trialing"]);
 
 export async function checkEntitlement(client: SupabaseClient, userId: string): Promise<{ entitled: boolean; status: string | null }> {
-  const { data, error } = await client.from("subscriptions").select("status").eq("user_id", userId).maybeSingle();
+  const { data, error } = await client.from("subscriptions").select("status, current_period_end").eq("user_id", userId).maybeSingle();
   if (error) {
     // Fail closed for entitlement (unlike the daily-message rate limit,
     // which fails open) — an infra hiccup here must not accidentally
@@ -26,5 +26,19 @@ export async function checkEntitlement(client: SupabaseClient, userId: string): 
     return { entitled: false, status: null };
   }
   if (!data) return { entitled: false, status: null };
-  return { entitled: ENTITLED_STATUSES.has(data.status ?? ""), status: data.status };
+  if (!ENTITLED_STATUSES.has(data.status ?? "")) return { entitled: false, status: data.status };
+  // The 7-day signup trial (migration 0024) is granted by writing
+  // status='trialing' with current_period_end 7 days out — nothing ever
+  // flips status away from 'trialing' on its own, so without this check
+  // a trial that's never upgraded to a real Stripe subscription would
+  // stay entitled forever instead of actually expiring after 7 days as
+  // advertised. Scoped to 'trialing' only (not 'active' too) — a paying
+  // customer's current_period_end is kept current by stripe-webhook on
+  // each renewal, but webhook delivery can legitimately lag by minutes
+  // right at a renewal boundary, and this entitlement check isn't the
+  // place to risk denying a real paying customer over that timing gap.
+  if (data.status === "trialing" && data.current_period_end && new Date(data.current_period_end) < new Date()) {
+    return { entitled: false, status: data.status };
+  }
+  return { entitled: true, status: data.status };
 }

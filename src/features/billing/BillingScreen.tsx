@@ -14,6 +14,7 @@ import type { SubscriptionRow } from "@/lib/subscriptionsRepo";
 const STATUS_LABEL: Record<string, string> = {
   active: "Abonnement Actif",
   trialing: "Essai gratuit en cours",
+  trial_expired: "Essai expiré",
   past_due: "Paiement en attente",
   canceled: "Annulé",
   incomplete: "Incomplet",
@@ -53,7 +54,14 @@ export function BillingScreen({
   onManage: () => void;
   onBack: () => void;
 }) {
-  const status = subscription?.status ?? null;
+  // A 'trialing' row (the 7-day signup trial, migration 0024) never flips
+  // status on its own once its current_period_end passes — matches
+  // _shared/entitlement.ts's server-side check (the actual access gate;
+  // this is display only). Without this, the banner would keep claiming
+  // "Essai gratuit en cours" forever after a trial genuinely expired,
+  // even though every AI action would already be rejected server-side.
+  const trialExpired = subscription?.status === "trialing" && !!subscription.current_period_end && new Date(subscription.current_period_end) < new Date();
+  const status = trialExpired ? "trial_expired" : subscription?.status ?? null;
   const isEntitled = status === "active" || status === "trialing";
   // past_due/incomplete already have a live Stripe subscription (just
   // one needing a payment fix) — routing them through "S'abonner" would
@@ -164,7 +172,13 @@ export function BillingScreen({
                     {subscription?.current_period_end ? (
                       <p className="text-xs text-meta mt-1 flex items-center gap-1.5">
                         <Calendar className="h-3.5 w-3.5" />
-                        {status === "canceled" ? "Accès valable jusqu'au" : "Prochain renouvellement le"}{" "}
+                        {status === "canceled"
+                          ? "Accès valable jusqu'au"
+                          : status === "trialing"
+                          ? "Essai gratuit jusqu'au"
+                          : status === "trial_expired"
+                          ? "Essai expiré le"
+                          : "Prochain renouvellement le"}{" "}
                         {new Date(subscription.current_period_end).toLocaleDateString("fr-FR", {
                           day: "numeric",
                           month: "long",
