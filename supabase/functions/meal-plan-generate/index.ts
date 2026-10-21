@@ -21,7 +21,23 @@ import { calcMealTotalsWithFoods, fetchAllFoods } from "../_shared/nutritionCalc
 import { getWeekStart as getMondayOfCurrentWeek } from "../_shared/weekDates.ts";
 import { mealPlanGenerateOutputSchema } from "../_shared/schemas.ts";
 
-const MAX_TOKENS = 3000;
+// Was 3000 — diagnostic logging against production showed successful
+// calls already using 2790-2863 output tokens (93-95% of that cap). A
+// client report of this function intermittently returning "days:
+// expected array, received undefined" matches exactly what happens when
+// Claude hits max_tokens mid-generation, before finishing the "days"
+// array: the response gets cut off and the resulting tool_use input is
+// incomplete. Bumped well above the observed near-saturation point.
+const MAX_TOKENS = 6000;
+// _shared/claude.ts's default 35s Claude-fetch timeout is tuned for
+// chat-respond's much shorter replies — this function's own 5-day,
+// 15-meal generation also intermittently hit that ceiling in live
+// testing ("Claude n'a pas répondu dans le délai imparti (35s)"), the
+// same bug class already fixed for prep-dimanche-brief. The client-side
+// timeout here is 90s (NutritionScreen.tsx), so 70s leaves ~20s margin
+// for the DB reads/writes and the per-meal nutrition-calc work that
+// happens around this call.
+const CLAUDE_TIMEOUT_MS = 70_000;
 const MEAL_SLOTS = ["breakfast", "lunch", "dinner"] as const;
 // "course" deliberately excluded despite meaning "running" in a sport
 // context — in French it much more commonly means "errand"/"grocery run"
@@ -152,6 +168,7 @@ ${dayRulesText}`;
         required: ["days"],
       },
       maxTokens: MAX_TOKENS,
+      timeoutMs: CLAUDE_TIMEOUT_MS,
     });
     logTokenUsage("meal-plan-generate", userId, usage);
 
