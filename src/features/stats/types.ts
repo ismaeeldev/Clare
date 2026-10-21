@@ -20,6 +20,15 @@ export interface StatsScreenProps {
   profile: BuildSystemPromptProfile;
   journal: CoherenceJournalEntry[];
   finances: BuildSystemPromptFinances;
+  // Separate from `finances` (a monthly total fed only into
+  // calculerCoherence's score, left untouched here to avoid changing that
+  // calculation's behavior) — this is the real last-7-days total from the
+  // finance_entries table (manual + AI-confirmed), inclusive of today.
+  // Client report: "7-day Finances" never included today's entries,
+  // because the card previously read from journal_entries.revenue/
+  // expenses — a separate, single-per-day rollup field most users never
+  // fill in — instead of the real transactional ledger.
+  weekFinances: { revenus: number; depenses: number };
   focusLog?: CoherenceFocusLogEntry[];
   loading?: boolean;
   refreshing?: boolean;

@@ -103,7 +103,7 @@ const COLOR_VARS_TEXT: Record<string, string> = {
  * were only ever used to build the old client-side prompt, no longer
  * needed here.
  */
-export function StatsScreen({ profile, journal, finances, focusLog = [], loading = false, refreshing = false, loadError, onRetryLoad, onRefresh }: StatsScreenProps) {
+export function StatsScreen({ profile, journal, finances, weekFinances, focusLog = [], loading = false, refreshing = false, loadError, onRetryLoad, onRefresh }: StatsScreenProps) {
   const [bilan, setBilan] = useState<StatsBilan | null>(null);
   const [loadingBilan, setLoadingBilan] = useState(false);
   // Score de Cohérence (calculerCoherence, below) is a deterministic local
@@ -119,8 +119,11 @@ export function StatsScreen({ profile, journal, finances, focusLog = [], loading
   // showing stale data) once a user has more history than that.
   const last7 = journal.slice(0, 7);
   const sportCount = last7.filter((j) => j.sport === "oui").length;
-  const totalDep = last7.reduce((s, j) => s + parseFloat(String(j.depenses || 0)), 0);
-  const totalRev = last7.reduce((s, j) => s + parseFloat(String(j.revenus || 0)), 0);
+  // Real finance_entries totals (weekFinances, from StatsRoute), not
+  // journal_entries' separate rollup field — see StatsScreenProps'
+  // weekFinances doc comment for why.
+  const totalDep = weekFinances.depenses;
+  const totalRev = weekFinances.revenus;
   const avgEnergie = last7.length ? (last7.reduce((s, j) => s + (j.energie || 3), 0) / last7.length).toFixed(1) : "-";
   const avgHumeur = last7.length ? (last7.reduce((s, j) => s + (j.humeur || 3), 0) / last7.length).toFixed(1) : "-";
 

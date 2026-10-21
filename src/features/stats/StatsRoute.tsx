@@ -21,6 +21,7 @@ export function StatsRoute() {
   const [profile, setProfile] = useState<BuildSystemPromptProfile>({ prenom: "" });
   const [journal, setJournal] = useState<CoherenceJournalEntry[]>([]);
   const [finances, setFinances] = useState<BuildSystemPromptFinances>({});
+  const [weekFinances, setWeekFinances] = useState<{ revenus: number; depenses: number }>({ revenus: 0, depenses: 0 });
   const [focusLog, setFocusLog] = useState<CoherenceFocusLogEntry[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -88,6 +89,21 @@ export function StatsRoute() {
         revenus: thisMonthEntries.filter((f) => f.type === "revenue").reduce((sum, f) => sum + f.amount, 0),
         depenses: thisMonthEntries.filter((f) => f.type === "expense").reduce((sum, f) => sum + f.amount, 0),
       });
+
+      // Last 7 CALENDAR days inclusive of today (6 days ago through today)
+      // — the real finance_entries ledger, not journal_entries' separate
+      // single-per-day revenue/expenses rollup field. Client report: the
+      // "7-day Finances" card never showed today's entries, because it
+      // used to read from that journal rollup instead of this real
+      // transactional data.
+      const sevenDaysAgo = new Date(now);
+      sevenDaysAgo.setDate(now.getDate() - 6);
+      const sevenDaysAgoKey = dateKey(sevenDaysAgo);
+      const last7DaysEntries = financeRows.filter((f) => f.entry_date >= sevenDaysAgoKey);
+      setWeekFinances({
+        revenus: last7DaysEntries.filter((f) => f.type === "revenue").reduce((sum, f) => sum + f.amount, 0),
+        depenses: last7DaysEntries.filter((f) => f.type === "expense").reduce((sum, f) => sum + f.amount, 0),
+      });
     } catch (e) {
       setLoadError(e instanceof Error ? e.message : "Impossible de charger tes statistiques.");
     } finally {
@@ -117,6 +133,7 @@ export function StatsRoute() {
       profile={profile}
       journal={journal}
       finances={finances}
+      weekFinances={weekFinances}
       focusLog={focusLog}
       loading={loadingData}
       refreshing={refreshing}
