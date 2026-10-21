@@ -48,12 +48,41 @@ const ACTION_LABELS: Record<ActionType, string> = {
   update_journal_state: "Mise à jour du journal",
 };
 
+// Formats a Date's LOCAL calendar date as YYYY-MM-DD — never
+// toISOString(), which always serializes to UTC regardless of how the
+// Date was constructed. Europe/Paris is UTC+1/+2, so for the ~1-2 hours
+// after local midnight the UTC date is still "yesterday"; using
+// toISOString() here for a "today"/"tomorrow" resolution would silently
+// date a confirmed entry a day off during that window — the same class
+// of bug a client report flagged for AI-proposed appointment dates
+// resolving against the wrong "today" in the first place.
+function formatLocalDate(d: Date): string {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function resolveDate(value: unknown): string {
-  if (typeof value !== "string") return new Date().toISOString();
+  // A missing/non-string date (malformed model output) previously fell
+  // back to new Date().toISOString() — a full UTC timestamp, not a
+  // YYYY-MM-DD date, and UTC-based for the same reason this function's
+  // other two branches were just fixed. Falling back to today's correct
+  // local date here is both more consistent with the rest of this
+  // function and avoids handing a timestamp string to a date column.
   const now = new Date();
+  if (typeof value !== "string") return formatLocalDate(now);
   if (value === "tomorrow" || value === "demain") {
     now.setDate(now.getDate() + 1);
-    return now.toISOString().split("T")[0];
+    return formatLocalDate(now);
+  }
+  if (value === "today" || value === "aujourd'hui") {
+    // Resolved explicitly here rather than passed through as the literal
+    // string "today" for Postgres's date-cast parser to interpret —
+    // Postgres's special 'today' value is evaluated in the DATABASE
+    // server's timezone (UTC on this project), not the user's, which is
+    // the same UTC-vs-Paris mismatch formatLocalDate's comment explains.
+    return formatLocalDate(now);
   }
   // Already an ISO-ish date string — trust it as-is.
   return value;
@@ -110,7 +139,7 @@ async function commitProposal(actionType: ActionType, fields: Record<string, unk
       const type = expenseSynonyms.has(String(fields.type).toLowerCase()) ? "expense" : "revenue";
       const { error } = await supabase.from("finance_entries").insert({
         user_id: userId,
-        entry_date: resolveDate(fields.date) ?? new Date().toISOString().split("T")[0],
+        entry_date: resolveDate(fields.date),
         amount: Number(fields.amount) || 0,
         type,
         category: typeof fields.category === "string" ? fields.category : null,
@@ -204,8 +233,10 @@ async function commitProposal(actionType: ActionType, fields: Record<string, unk
     case "update_journal_state": {
       // Upsert on (user_id, entry_date) same as journalRepo.saveEntry
       // (Step 3.4) — merges into today's entry rather than overwriting
-      // fields this proposal doesn't know about.
-      const today = new Date().toISOString().split("T")[0];
+      // fields this proposal doesn't know about. formatLocalDate, not
+      // toISOString() — see that function's comment for why (UTC vs the
+      // browser's local/Europe/Paris date near midnight).
+      const today = formatLocalDate(new Date());
       const energyDelta = typeof fields.energy_delta === "number" ? fields.energy_delta : null;
       const { data: existing } = await supabase.from("journal_entries").select("energy, text_content").eq("user_id", userId).eq("entry_date", today).maybeSingle();
       const baseEnergy = existing?.energy ?? 3;

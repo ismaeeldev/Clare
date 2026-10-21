@@ -23,11 +23,17 @@ import { callClaudeStructured, logTokenUsage } from "../_shared/claude.ts";
 import { checkDailyMessageLimit } from "../_shared/rateLimit.ts";
 import { checkEntitlement } from "../_shared/entitlement.ts";
 import { revenueCatchupPlanSchema, sportSessionPlanSchema } from "../_shared/schemas.ts";
+import { parisDateParts } from "../_shared/dateContext.ts";
 
 const MAX_TOKENS = 1200;
 
+// Was `new Date().toISOString().split("T")[0]` — UTC, which is 1-2 hours
+// behind Europe/Paris and would scope this function's daily idempotency
+// key to the wrong calendar day for that window each night (see
+// dateContext.ts for the full explanation of this bug class, caught via
+// a client report about AI-resolved dates).
 function todayKey(): string {
-  return new Date().toISOString().split("T")[0];
+  return parisDateParts().iso;
 }
 
 Deno.serve(async (req: Request) => {
@@ -130,17 +136,23 @@ Deno.serve(async (req: Request) => {
     const objectifCA = Number(business?.objectifCA);
 
     if (Number.isFinite(objectifCA) && objectifCA > 0) {
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const dayOfMonth = now.getDate();
+      // Uses the Europe/Paris calendar date, not the Deno runtime's local
+      // getters (effectively UTC on this platform) — same reasoning as
+      // todayKey() above: a revenue entry logged in the first 1-2 hours
+      // of a new Paris day/month could otherwise land on the wrong side
+      // of this month-start boundary.
+      const { iso: todayParis } = parisDateParts();
+      const [y, m, d] = todayParis.split("-").map(Number);
+      const monthStartKey = `${y}-${String(m).padStart(2, "0")}-01`;
+      const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+      const dayOfMonth = d;
 
       const { data: monthRevenue } = await client
         .from("finance_entries")
         .select("amount")
         .eq("user_id", userId)
         .eq("type", "revenue")
-        .gte("entry_date", monthStart.toISOString().split("T")[0]);
+        .gte("entry_date", monthStartKey);
       const actualRevenue = (monthRevenue ?? []).reduce((sum, r) => sum + Number(r.amount), 0);
       const expectedPace = (objectifCA / daysInMonth) * dayOfMonth;
 
