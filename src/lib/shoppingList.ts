@@ -14,13 +14,38 @@ export interface ShoppingItem {
   unresolvedCount: number; // how many of the summed occurrences had no nutrition_food_id match
 }
 
+// Strips a trailing plural "s" per word (never 3-char-or-shorter words,
+// to avoid over-stemming) — same approach as _shared/nutritionCalc.ts's
+// stem(), applied here for the same reason: the AI can spell the exact
+// same ingredient inconsistently across different meals/days/plan
+// generations (singular vs plural, "œufs" vs "Œufs" vs "oeufs"), and
+// without this they'd each get a different dedup key, silently showing
+// up as multiple separate shopping-list lines for what's actually one
+// thing to buy — a client report of duplicate entries in the shopping
+// list.
+function stemWord(word: string): string {
+  return word.length > 3 && word.endsWith("s") ? word.slice(0, -1) : word;
+}
+
 function normalizeKey(name: string): string {
   return name
     .toLowerCase()
+    // œ/æ are single ligature codepoints, not precomposed accented
+    // letters — NFD below doesn't decompose them, so left unhandled the
+    // later non-alphanumeric strip treats œ as punctuation and mangles
+    // "œufs" into "ufs" while a plain-spelled "Oeufs" normalizes
+    // correctly to "oeufs" — two different keys for the same ingredient.
+    // Same root cause already found and fixed in nutritionCalc.ts's own
+    // normalize().
+    .replace(/œ/g, "oe")
+    .replace(/æ/g, "ae")
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9\s]/g, "")
-    .trim();
+    .trim()
+    .split(/\s+/)
+    .map(stemWord)
+    .join(" ");
 }
 
 // Keywords are written with accents for readability but matched against an
@@ -50,6 +75,22 @@ function findAisle(name: string): string {
   return "Autres";
 }
 
+// AISLES above is already written in a deliberate, sensible order
+// (produce, meat/fish, dairy, pantry, bakery, dried fruit/misc) — but the
+// list was previously sorted by a.aisle.localeCompare(b.aisle), which
+// discards that order for plain alphabetical sorting instead. French
+// collation puts "Autres" (the catch-all for anything that matched no
+// keyword — plausibly a meaningful fraction of items, given AI naming
+// variance) before every real category, including "Viandes & poissons"
+// and "Fruits & légumes" — unclassified items jumping to the very top of
+// the list, ahead of the structured aisles, reads as genuinely "bizarre
+// ranking" rather than a sensible shopping order. AISLE_ORDER restores
+// the array's own intended order and places "Autres" explicitly last.
+const AISLE_ORDER = new Map<string, number>(AISLES.map((a, i) => [a.name, i]));
+function aisleRank(aisle: string): number {
+  return AISLE_ORDER.get(aisle) ?? AISLES.length; // "Autres" (or any unknown aisle) sorts after every real category
+}
+
 export function buildShoppingList(mealPlans: MealPlanRow[]): ShoppingItem[] {
   const byKey = new Map<string, ShoppingItem>();
   for (const plan of mealPlans) {
@@ -71,7 +112,7 @@ export function buildShoppingList(mealPlans: MealPlanRow[]): ShoppingItem[] {
       }
     }
   }
-  return [...byKey.values()].sort((a, b) => a.aisle.localeCompare(b.aisle) || a.name.localeCompare(b.name));
+  return [...byKey.values()].sort((a, b) => aisleRank(a.aisle) - aisleRank(b.aisle) || a.name.localeCompare(b.name));
 }
 
 export function groupByAisle(items: ShoppingItem[]): { aisle: string; items: ShoppingItem[] }[] {
