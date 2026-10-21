@@ -28,3 +28,8 @@ Refrence
 # `supabase` CLI command, never meant to be committed.
 supabase/.temp
 
+# Scratch scripts/screenshots used for live verification during a
+# session (bug repro, deploy smoke tests) — always meant to be deleted
+# after use, never committed.
+.tmp-*
+
