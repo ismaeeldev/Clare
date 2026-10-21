@@ -139,7 +139,14 @@ export function PrepDimancheScreen({ userId, profile, journal, agenda, finances,
           coherenceGlobal: coherence.global,
           routine,
         },
-        60000
+        // Was 60000 — the server's own per-call Claude budget is 48s
+        // (prep-dimanche-brief/index.ts's CLAUDE_TIMEOUT_MS), and a real
+        // live test against production took 51.7s end-to-end, leaving
+        // only ~8s margin against a 60s client timeout. Given real AI
+        // latency variance, bumped to 75s so a slightly slower real
+        // generation doesn't reintroduce the exact "fails because the
+        // client gives up first" race this whole fix exists to close.
+        75000
       );
       setBrief(parsed);
       // Legacy local slot — no longer the source of truth (HomeRoute reads

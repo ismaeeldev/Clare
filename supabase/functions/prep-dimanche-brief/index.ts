@@ -26,6 +26,18 @@ import { prepDimancheSummarySchema, prepDimanchePlanSchema } from "../_shared/sc
 
 const MAX_TOKENS_SUMMARY = 2000;
 const MAX_TOKENS_PLAN = 2500;
+// _shared/claude.ts's default 35s Claude-fetch timeout is tuned for
+// chat-respond's much shorter single-turn replies (45s client timeout,
+// 10s margin). This function's own prompts — full user context plus a
+// 7-day 1-3-5 task plan — are documented below to legitimately take
+// 20-40s each, routinely exceeding that 35s default and failing on every
+// real attempt (confirmed by a client report: "Claude n'a pas répondu
+// dans le délai imparti (35s)"). The client's own timeout here is 60s
+// (PrepDimancheScreen.tsx), so 48s leaves ~12s margin for buildFullContext's
+// DB reads and response serialization to still finish and return a clean
+// result/error before the client gives up — same margin principle as the
+// 35s default, just sized for this function's real budget instead.
+const CLAUDE_TIMEOUT_MS = 48_000;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -102,6 +114,7 @@ Deno.serve(async (req: Request) => {
           required: ["resume"],
         },
         maxTokens: MAX_TOKENS_SUMMARY,
+        timeoutMs: CLAUDE_TIMEOUT_MS,
       }),
       callClaudeStructured({
         systemPrompt: planPrompt,
@@ -133,6 +146,7 @@ Deno.serve(async (req: Request) => {
           required: ["jours"],
         },
         maxTokens: MAX_TOKENS_PLAN,
+        timeoutMs: CLAUDE_TIMEOUT_MS,
       }),
     ]);
     logTokenUsage("prep-dimanche-brief:summary", userId, summaryCall.usage);

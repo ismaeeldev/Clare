@@ -95,6 +95,7 @@ export async function callClaudeStructured({
   toolDescription,
   outputSchema,
   maxTokens,
+  timeoutMs = CLAUDE_FETCH_TIMEOUT_MS,
 }: {
   systemPrompt: string;
   messages: ClaudeMessage[];
@@ -102,6 +103,17 @@ export async function callClaudeStructured({
   toolDescription: string;
   outputSchema: JsonSchema;
   maxTokens: number;
+  // Per-call override of CLAUDE_FETCH_TIMEOUT_MS's 35s default — needed by
+  // prep-dimanche-brief, whose prompts (full user context, a 7-day 1-3-5
+  // plan) are documented to legitimately take 20-40s each, routinely
+  // exceeding the 35s default tuned for chat-respond's much shorter
+  // single-turn replies. A client report confirmed this failed on every
+  // real attempt with "Claude n'a pas répondu dans le délai imparti
+  // (35s)" — the fix is this override, not a blanket timeout increase for
+  // every caller (which would reopen the exact client-vs-server timeout
+  // race this module's 35s default exists to close for callers whose
+  // client-side timeout actually IS ~45s).
+  timeoutMs?: number;
 }): Promise<{ result: unknown; usage: TokenUsage | undefined }> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) {
@@ -132,7 +144,7 @@ export async function callClaudeStructured({
         tool_choice: { type: "tool", name: toolName },
       }),
     },
-    CLAUDE_FETCH_TIMEOUT_MS
+    timeoutMs
   );
 
   if (!res.ok) {
