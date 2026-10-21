@@ -71,6 +71,12 @@ export function BillingScreen({
   // customer and double-bill them. Send them to the portal instead,
   // same place the past_due alert card's own CTA already points.
   const hasExistingSubscription = status === "past_due" || status === "incomplete";
+  // A 'trialing' user has no real Stripe customer yet (stripe-portal
+  // 404s with "Aucun abonnement Stripe trouvé" for them — confirmed live
+  // while verifying the trial feature) — only "active" plus the two
+  // already-has-a-real-subscription statuses above should route to the
+  // portal button; a trial should see the normal subscribe CTA instead.
+  const showManageButton = status === "active" || hasExistingSubscription;
 
   return (
     <div className="min-h-dvh pb-24 lg:pb-8 font-ui">
@@ -193,7 +199,7 @@ export function BillingScreen({
                   </div>
                 </div>
 
-                {isEntitled || hasExistingSubscription ? (
+                {showManageButton ? (
                   <Button
                     variant="secondary"
                     onClick={onManage}
