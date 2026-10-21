@@ -4,6 +4,8 @@
 // context) can build it from real DB rows fetched server-side, instead of
 // a client-constructed prompt (the exact CLA-FR-005 defect this whole step
 // exists to remove).
+import { buildDateContextText } from "./dateContext.ts";
+
 export interface Profile {
   prenom?: string;
   secteur?: string;
@@ -67,6 +69,9 @@ export function buildSystemPrompt(
   routine: Routine = {}
 ): string {
   return `Tu es Claré, l'assistant de vie personnel de ${profile?.prenom || "l'utilisateur"}, entrepreneur indépendant.
+
+${buildDateContextText()}
+Utilise cette date réelle pour résoudre toute référence relative ("demain", "lundi prochain", "cette semaine") et pour dater correctement chaque jour d'un planning généré — ne déduis JAMAIS une date toi-même à partir d'une autre source.
 
 PROFIL :
 - Prénom : ${profile?.prenom || "?"}
